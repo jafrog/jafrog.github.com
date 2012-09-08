@@ -1,0 +1,64 @@
+@import "bootstrap/bootstrap.less";
+@import "variables.less";
+@import "bootswatch.less";
+
+@font-face {
+    font-family: 'JosefinSansStdLight';
+    src: url('/fonts/JosefinSansStd-Light-webfont.eot');
+    src: url('/fonts/JosefinSansStd-Light-webfont.eot?#iefix') format('embedded-opentype'),
+         url('/fonts/JosefinSansStd-Light-webfont.woff') format('woff'),
+         url('/fonts/JosefinSansStd-Light-webfont.ttf') format('truetype'),
+         url('/fonts/JosefinSansStd-Light-webfont.svg#JosefinSansStdLight') format('svg');
+    font-weight: normal;
+    font-style: normal;
+
+}
+
+.container-fluid {
+    background-color: @white;
+
+    .page-header {
+        h1 {
+            font-size: 50px;
+            a {
+                color: @darkPink;
+
+                &:hover {
+                    text-decoration: none;
+                }
+            }
+
+            small {
+                a {
+                    color: @gray;
+                }
+            }
+        }
+    }
+
+    .well {
+        h1 {
+            color: @pink;
+        }
+
+        .highlight {
+            pre {
+                background-color: #272822;
+                color: @white;
+            }
+        }
+
+        #disqus_thread {
+            margin-top: 50px;
+        }
+    }
+
+    .about {
+        p {
+            font-size: 18px;
+            line-height: 26px;
+            font-family: "Times New Roman";
+            font-style: oblique;
+        }
+    }
+}
