@@ -3,7 +3,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
  
-  <title>{{ site.title }}</title>
+  <title>Jafrog's dev blog</title>
   <link href="{{ site.url }}" rel="self"/>
   <link href="{{ site.url }}"/>
   <updated>{{ site.time | date_to_xmlschema }}</updated>
