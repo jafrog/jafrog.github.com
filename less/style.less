@@ -14,6 +14,12 @@
 
 }
 
+.nohover {
+    &:hover {
+        text-decoration: none;
+    }
+}
+
 .container-fluid {
     background-color: @white;
 
@@ -22,10 +28,7 @@
             font-size: 50px;
             a {
                 color: @darkPink;
-
-                &:hover {
-                    text-decoration: none;
-                }
+                .nohover;
             }
 
             small {
@@ -53,12 +56,20 @@
         }
     }
 
-    .about {
-        p {
+    p {
+
+        &.about {
             font-size: 18px;
             line-height: 26px;
             font-family: "Times New Roman";
             font-style: oblique;
         }
+
+    }
+
+    .email {
+        font-size: 16px;
+        line-height: 22px;
+        .nohover;
     }
 }

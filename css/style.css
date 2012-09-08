@@ -5474,6 +5474,9 @@ i[class^="icon-"] {
   font-weight: normal;
   font-style: normal;
 }
+.nohover:hover {
+  text-decoration: none;
+}
 .container-fluid {
   background-color: #ffffff;
 }
@@ -5499,9 +5502,16 @@ i[class^="icon-"] {
 .container-fluid .well #disqus_thread {
   margin-top: 50px;
 }
-.container-fluid .about p {
+.container-fluid p.about {
   font-size: 18px;
   line-height: 26px;
   font-family: "Times New Roman";
   font-style: oblique;
+}
+.container-fluid .email {
+  font-size: 16px;
+  line-height: 22px;
+}
+.container-fluid .email:hover {
+  text-decoration: none;
 }
