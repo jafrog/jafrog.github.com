@@ -482,6 +482,7 @@ a:hover {
 }
 p {
   margin: 0 0 10px;
+  line-height: 1.75;
 }
 .lead {
   margin-bottom: 20px;
@@ -5437,6 +5438,11 @@ i[class^="icon-"] {
   box-shadow: 1px 1px 1px rgba(0, 0, 0, 0.2) ,  -1px -1px 0 rgba(0, 0, 0, 0.1);
   border: none;
 }
+
+.well.index {
+    padding-bottom: 40px;
+}
+
 .hero-unit {
   background-color: #fefefe;
   -webkit-box-shadow: 1px 1px 1px rgba(0, 0, 0, 0.2) ,  -1px -1px 0 rgba(0, 0, 0, 0.1);
@@ -5502,6 +5508,18 @@ i[class^="icon-"] {
 .container-fluid .well #disqus_thread {
   margin-top: 50px;
 }
+
+.container-fluid .well .date {
+    text-align: right;
+    margin: 5px 0 10px 0;
+    font-family: "JosefinSansStdLight", "Josefin Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 18px;
+}
+
+.container-fluid .well .date.index {
+    margin-bottom: 0;
+}
+
 .container-fluid p.about {
   font-size: 18px;
   line-height: 26px;
