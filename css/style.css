@@ -1,4 +1,6 @@
 @import url('https://fonts.googleapis.com/css?family=Josefin+Sans:300,400,700');
+@import url(http://fonts.googleapis.com/css?family=Arapey:400italic,400);
+
 /*!
  * Bootstrap v2.1.1
  *
@@ -5439,10 +5441,6 @@ i[class^="icon-"] {
   border: none;
 }
 
-.well.index {
-    padding-bottom: 40px;
-}
-
 .hero-unit {
   background-color: #fefefe;
   -webkit-box-shadow: 1px 1px 1px rgba(0, 0, 0, 0.2) ,  -1px -1px 0 rgba(0, 0, 0, 0.1);
@@ -5509,27 +5507,27 @@ i[class^="icon-"] {
   margin-top: 50px;
 }
 
-.container-fluid .well .date {
+.container-fluid .index {
+    margin-bottom: 48px;
+}
+
+.container-fluid .date {
     text-align: right;
     margin: 5px 0 10px 0;
     font-family: "JosefinSansStdLight", "Josefin Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 18px;
 }
 
-.container-fluid .well .date.index {
+.container-fluid .date.index {
     margin-bottom: 0;
 }
 
 .container-fluid p.about {
-  font-size: 18px;
-  line-height: 26px;
-  font-family: "Times New Roman";
-  font-style: oblique;
-}
-.container-fluid .email {
   font-size: 16px;
-  line-height: 22px;
+  font-style: oblique;
+  font-family: 'Arapey', serif;
 }
-.container-fluid .email:hover {
-  text-decoration: none;
+
+h1.headline {
+    margin: 7px 0 14px 0;
 }
