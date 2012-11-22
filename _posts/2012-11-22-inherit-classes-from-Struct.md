@@ -40,18 +40,18 @@ Foo.ancestors
 => [Foo, Object, Kernel, BasicObject]
 {% endhighlight %}
 
-When inheriting from ´Struct.new´:
+When inheriting from `Struct.new`:
 
 {% highlight ruby %}
 Foo.ancestors
 => [Foo, #<Class:0x00000001d41100>, Struct, Enumerable, Object, Kernel, BasicObject]
 {% endhighlight %}
 
-When creating a constant from ´Struct.new´:
+When creating a constant from `Struct.new`:
 
 {% highlight ruby %}
 Foo.ancestors
 => [Foo, Struct, Enumerable, Object, Kernel, BasicObject]
 {% endhighlight %}
 
-Have you noticed ´Enumerable´ in two later cases? It means that suddenly instances of your class start to respond to ´each´ method and a bunch of other methods. So it's better be careful using ´Struct´ like this.
+Have you noticed `Enumerable` in two later cases? It means that suddenly instances of your class start to respond to `each` method and a bunch of other methods. So it's better be careful using `Struct` like this.
