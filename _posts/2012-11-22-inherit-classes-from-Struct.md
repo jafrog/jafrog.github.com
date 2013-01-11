@@ -6,7 +6,7 @@ summary: Interesting way to declare a class in Ruby
 I've recently spotted a curious trend in blogposts about Ruby. It's the way people define classes in examples. It goes like this:
 
 {% highlight ruby %}
-class Foo < Struct(:bar)
+class Foo < Struct.new(:bar)
   # some methods...
 end
 {% endhighlight %}
@@ -26,7 +26,7 @@ end
 The other way to save typing on attributes lookes like this:
 
 {% highlight ruby %}
-Foo = Struct(:bar) do
+Foo = Struct.new(:bar) do
   # some methods...
 end
 {% endhighlight %}
