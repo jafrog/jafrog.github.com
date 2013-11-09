@@ -1,76 +1,35 @@
 @import "bootstrap/bootstrap.less";
-@import "bootstrap/font-awesome.less";
 @import "bootswatch.less";
 @import "variables.less";
 
-@font-face {
-    font-family: 'JosefinSansStdLight';
-    src: url('/fonts/JosefinSansStd-Light-webfont.eot');
-    src: url('/fonts/JosefinSansStd-Light-webfont.eot?#iefix') format('embedded-opentype'),
-         url('/fonts/JosefinSansStd-Light-webfont.woff') format('woff'),
-         url('/fonts/JosefinSansStd-Light-webfont.ttf') format('truetype'),
-         url('/fonts/JosefinSansStd-Light-webfont.svg#JosefinSansStdLight') format('svg');
-    font-weight: normal;
-    font-style: normal;
+@import url(http://fonts.googleapis.com/css?family=Fenix);
 
+.centered() {
+    width: 50%;
+    text-align: center;
 }
 
-.nohover {
-    &:hover {
-        text-decoration: none;
+.header {
+    .centered;
+
+    a {
+        color: @brightPink;
+        font-family: 'Fenix', serif;
+
+        &:hover { text-decoration: none; }
     }
 }
 
-.container-fluid {
-    background-color: @white;
-
-    .page-header {
-        h1 {
-            font-size: 50px;
-            a {
-                color: @pink;
-                .nohover;
-            }
-
-            small {
-                a {
-                    color: @gray;
-                }
-            }
-        }
-    }
-
-    .well {
-        h1 {
-            color: @pink;
-        }
-
-        .highlight {
-            pre {
-                background-color: #272822;
-                color: @white;
-            }
-        }
-
-        #disqus_thread {
-            margin-top: 50px;
-        }
-    }
-
-    p {
-
-        &.about {
-            font-size: 18px;
-            line-height: 26px;
-            font-family: "Times New Roman";
-            font-style: oblique;
-        }
-
-    }
-
-    .email {
-        font-size: 16px;
-        line-height: 22px;
-        .nohover;
-    }
+.links {
+    .centered;
+    a:hover { text-decoration: none; }
 }
+
+.index {
+    padding-top: 20px;
+    padding-bottom: 10px;
+
+    .headline a:hover { text-decoration: none; }
+}
+
+.bash { color: @gray-lighter; }

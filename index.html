@@ -3,13 +3,12 @@ layout: default
 ---
 {% for post in site.posts limit: 4 %}
   <div class="index">
-    <div class="date index">
-      {{ post.date | date: "%d %B %Y" }}
-    </div>
-    <h1 class="headline">
+    <h3 class="headline">
       <a href="{{ post.url }}">{{ post.title }}</a>
+      <small>
+        {{ post.date | date: "%d %B %Y" }}
+      </small>
     </h1>
     <p>{{ post.summary }}</p>
-    <a href="{{ post.url }}">More &rarr;</a>
   </div>
 {% endfor %}
