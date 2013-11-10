@@ -6097,6 +6097,10 @@ td.visible-print {
 .index .headline a:hover {
   text-decoration: none;
 }
-.bash {
+.highlight {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+.highlight .bash {
   color: #eeeeee;
 }
