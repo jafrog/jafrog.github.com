@@ -1,6 +1,6 @@
 ---
 layout: post
-summary: Arrays, hashes and even strings - all these objects are mutable in Ruby. And this may lead to some interesting and unexpected behavior when we try to use them as hash keys.
+summary: What happens when your hash keys could be changed in place.
 ---
 
 *Mutable object* is an object that could be changed 'in place'. Immutable, on the other hand means that you need to create another object if you want to change the value. Like this:
