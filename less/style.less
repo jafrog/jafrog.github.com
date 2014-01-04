@@ -10,16 +10,20 @@
   text-transform: uppercase;
   font-size: 14px;
 
+  .col-lg-8 {
+    padding-left: 0;
+  }
+
   a.title {
     padding: 5px 10px 6px;
     color: white;
     text-decoration: none;
-    background: @brand-primary;
+    background: @heading-title;
     float: left;
     display: block;
 
     &:hover {
-      background: black;
+      background: @dark;
     }
   }
 }
@@ -52,7 +56,7 @@
 
 a.button-square {
   text-decoration: none;
-  background: @heading;
+  background: @heading-btn;
   color: white;
   margin: 0 0 0 10px;
   float: left;
@@ -60,17 +64,17 @@ a.button-square {
   font-size: 20px;
 
   &:hover {
-    background: black;
+    background: @dark;
   }
 }
 
 .content {
-  border-top: 6px solid @gray-darker;
+  border-top: 6px solid @dark;
   padding-top: 35px;
   margin-top: 80px;
 
-  .post-header {
-    border-bottom: 1px dotted @gray-dark;
+  a.post-header {
+    border-bottom: 1px dotted @dark;
     padding: 20px 5px;
     display: block;
     text-decoration: none;
@@ -78,7 +82,7 @@ a.button-square {
 
     &:hover {
       color: black;
-      background: @gray-lighter;
+      background: @emph-bg;
     }
 
     h4 {
@@ -89,7 +93,7 @@ a.button-square {
     }
 
     time {
-      color: @gray-dark;
+      color: @gray-light;
       display: inline-block;
 
       &:before {
