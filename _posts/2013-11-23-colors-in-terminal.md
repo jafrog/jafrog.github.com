@@ -3,7 +3,7 @@ layout: post
 summary: A guide to making text in terminal more fun
 ---
 
-If you use terminal on a daily basis I bet you played with some color settings at least once. Colorizing `ls` output, shell prompt, `git` logs - those are very common tasks. And it's not surprising as color helps us parse information faster, pay attention to important parts and generally makes thing prettier. Everybody loves pretty things, especially the ones you have to look at every day.
+If you use terminal on a daily basis I bet you played with some color settings at least once. Colorizing `ls` output, shell prompt, `git` logs - those are very common tasks. And it's not surprising as color helps us parse information faster, pay attention to important parts and generally makes things prettier. Everybody loves pretty things, especially the ones you have to look at every day.
 
 This post is an attempt to gather in one place and structure things I know about colors in terminal.
 
@@ -94,7 +94,7 @@ done
 You should see something like this:
 
 <svg xmlns="http://www.w3.org/2000/svg" class="center-block" width="100%" height="220px">
-  <rect height="220" fill="#222" width="100%" rx="5" ry="5"/>
+  <rect height="220" fill="#333" width="100%"/>
   <text font-family="Verdana" font-size="14" y="30" x="20">
     <tspan fill="black">\e[30m</tspan>
     <tspan fill="red" dy="22" x="20">\e[31m</tspan>
