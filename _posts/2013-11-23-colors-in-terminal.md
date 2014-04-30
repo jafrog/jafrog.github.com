@@ -32,7 +32,7 @@ You've probably seen things like `\e[32m` or `\x1b[1;31m`. These are [ANSI escap
 
 So `\x1b[31;4m`, `\e[31;4m` and `\033[31;4m` are different ways to write the same sequence. Let's look at the structure of this sequence.
 
-<svg xmlns="http://www.w3.org/2000/svg" class="center-block" width="50%" height="200px">
+<svg xmlns="http://www.w3.org/2000/svg" class="center-block" width="350px" height="200px">
   <rect fill="white" stroke-width="2" />
   <text font-family="Verdana" font-size="14" y="40">
     <tspan fill="#4ECDC4" dx="75">Part of the CSI</tspan>

@@ -4,114 +4,95 @@
 @import "bootswatch.less";
 @import "variables.less";
 
-@import url(http://fonts.googleapis.com/css?family=Ubuntu);
+@import url(http://fonts.googleapis.com/css?family=Montserrat);
 
 .header {
-  margin-top: 100px;
-  margin-bottom: 35px;
-  text-transform: uppercase;
-  font-size: 14px;
-
-  .col-lg-8 {
-    padding-left: 0;
-  }
-
-  a.title {
-    padding: 5px 10px 6px;
-    color: white;
-    text-decoration: none;
-    background: @heading-title;
-    float: left;
-    display: block;
-
-    &:hover {
-      background: @dark;
-    }
-  }
-}
-
-.row.post-header {
   text-align: center;
-  text-transform: uppercase;
+  padding-top: 80px;
+  margin-bottom: 80px;
+  padding-bottom: 80px;
+  border-bottom: 3px solid @gray-lighter;
 
-  h1 {
-    font-size: 52px;
-    font-weight: 700;
-    margin: 15px 0;
+  img.avatar {
+    width: 60px;
   }
 
-  time {
-    color: @gray;
-    font-weight: 600;
-    font-size: 14px;
-    margin: 25px 0;
-
-    &:after {
-      content: "";
-      margin: 40px auto 0;
-      width: 100px;
-      border-bottom: 1px dotted @gray-light;
-      display: block;
-    }
+  a {
+    color: @text-color;
   }
-}
 
-a.button-square {
-  text-decoration: none;
-  background: @heading-btn;
-  color: white;
-  margin: 0 0 0 10px;
-  float: left;
-  padding: 0 10px;
-  font-size: 20px;
+  .title {
+    margin-top: 30px;
+    text-transform: uppercase;
+    font-size: 24px;
 
-  &:hover {
-    background: @dark;
-  }
-}
-
-.content {
-  border-top: 6px solid @dark;
-  padding-top: 35px;
-  margin-top: 80px;
-
-  a.post-header {
-    border-bottom: 1px dotted @dark;
-    padding: 20px 5px;
-    display: block;
-    text-decoration: none;
-    color: @brand-primary;
-
-    &:hover {
-      color: black;
-      background: @emph-bg;
-    }
-
-    h4 {
-      font-size: 18px;
-      margin-bottom: 18px;
-      display: inline-block;
-      margin: 0;
-    }
-
-    time {
-      color: @gray-light;
-      display: inline-block;
-
-      &:before {
-        content: "/ ";
+    a {
+      &:hover {
+        text-decoration: none;
       }
     }
   }
 
-  p {
-    margin-bottom: 30px;
+  .buttons {
+    width: 200px;
+    font-size: 18px;
+
+    a {
+      margin: 0 5px;
+
+      .fa-rss {
+        color: #FF6B6B;
+        &:hover { color: darken(#FF6B6B, 20%); }
+      }
+      .fa-twitter {
+        color: #4ECDC4;
+        &:hover { color: darken(#4ECDC4, 20%); }
+      }
+      .fa-github {
+        color: #556270;
+        &:hover { color: darken(#556270, 20%); }
+      }
+      .fa-envelope {
+        color: #C44D58;
+        &:hover { color: darken(#C44D58, 20%); } 
+      }
+    }
+  }
+}
+
+.post {
+  margin-bottom: 50px;
+  text-align: center;
+
+  a { text-decoration: none; }
+
+  .title {
+    margin-top: 10px;
   }
 
-  h3 {
-    font-weight: bold;
-    margin: 20px 0 30px;
+  .summary {
+    margin-top: 30px;
   }
+}
+
+time {
+  font-family: @font-family-sans-serif;
+  text-transform: uppercase;
+  color: @gray-light;
+}
+
+.border {
+  width: 50%;
+  border-bottom: 1px solid @gray-lighter;
+  margin-bottom: 50px;
+}
+
+.post-title {
+  .title { margin-top: 10px; }
+  margin-bottom: 40px;
+  text-align: center;
+
+  color: @brand-complimentary;
 }
 
 #disqus_thread {
@@ -126,5 +107,9 @@ svg {
   padding-top: 10px;
   padding-bottom: 10px;
 
-  .bash { color: @gray-lighter; }
+  pre {
+    background-color: @gray-darker;
+  }
+
+  .bash { color: @brand-secondary; }
 }

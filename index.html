@@ -2,17 +2,26 @@
 layout: default
 ---
 <body>
-  <div class="container">
+  <div class="fluid-container">
     {% include index_header.html %}
+  </div>
+  <div class="fluid-container">
     <div class="row">
       <div class="col-lg-8 col-lg-offset-2 content">
         {% for post in site.posts %}
-        <div class="row">
-          <a class="post-header" href="{{ post.url }}">
-            <h4>{{ post.title }}</h4>
-            <time class="date" datetime="{{ post.date }}">{{ post.date | date: "%d %B %Y" }}</time>
-          </a>
+        <div class="row post">
+          <time class="date" datetime="{{ post.date }}">{{ post.date | date: "%d %B %Y" }}</time>
+          <h2 class="title">
+            <a class="post-header" href="{{ post.url }}">
+              {{ post.title }}
+            </a>
+          </h2>
+          <p class="summary">
+            {{ post.summary }}
+            <a class="post-header" href="{{ post.url }}">&raquo;</a>
+          </p>
         </div>
+        <div class="border center-block"></div>
         {% endfor %}
       </div>
     </div>
