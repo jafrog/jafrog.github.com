@@ -7,7 +7,7 @@ summary: Building a Nixie tubes counter part I - Shift Register
 
 This winter I had my first Hack Days at FreeAgent. During the Hack Days everybody at FreeAgent teams up for a couple of days and builds something fun and (preferably) useful. That's when "Machine that goes 'Ping!'" was born.
 
-![Machine that goes 'Ping!'](/assets/posts/wiring-a-shift-register/ping1.jpg)
+![Machine that goes 'Ping!'](/assets/posts/wiring-a-shift-register/ping1.JPG)
 
 With an Arduino Uno board, some Sugru, bicycle bell, a few LEDs, servo motor and a RabbitMQ subscription to production logs it was able to ring a bell and flash some ligths every time FreeAgent got a new subscriber. The machine was a grand success.
 
@@ -196,7 +196,7 @@ void loop() {
 
 Here's the picture where active LEDs form the binary number `10011001` - `99` in BCD form.
 
-![Wired Shift Register](/assets/posts/wiring-a-shift-register/ShiftRegBreadboard.jpg)
+![Wired Shift Register](/assets/posts/wiring-a-shift-register/ShiftRegBreadboard.JPG)
 
 Arduino website has a great [tutorial](http://arduino.cc/en/tutorial/ShiftOut) on using a shift register with Arduino.
 
