@@ -1,0 +1,84 @@
+<script type="text/javascript">
+ document.addEventListener("DOMContentLoaded", function(event) {
+   var svg = Snap("svg#shift_reg"),
+   marker = svg.path("M 0 0 L 10 5 L 0 10 z").marker(0,0,3,3,1,5).attr({"viewBox": "0 0 10 10"}),
+   shcp = svg.text(40, 140, "SHCP").attr({"font-size": "28px", opacity: 0}),
+   stcp = svg.text(40, 180, "STCP").attr({"font-size": "28px", opacity: 0}),
+   input_arrow = svg.line(150, 80, 180, 80).attr({"marker-end": marker,
+                                                  "stroke-width": 3}),
+   x = 190,
+   output_rects = svg.g().attr({fill: "white", "stroke-width": 3}),
+   output_rects_labels = svg.g(),
+   input_signals = [1,0,0,1,0,0,1,0],
+   input_string = input_signals.join(""),
+   input_string_el = svg.text(35, 90, input_string),
+   input_texts = svg.g(),
+   output_lines = svg.g(),
+   outputs = svg.g().append(input_texts).append(output_lines);
+
+   input_signals.reverse();
+   for (var i=0; i<8; i++) {
+     output_rects.add(svg.rect(x, 60, 40, 40));
+     output_rects_labels.add(svg.text(x+5, 130, "Q"+i));
+     output_lines.add(svg.line(x+17, 60, x+17, 50).attr({"marker-end": marker,
+                                                         "stroke-width": 3}));
+     x += 40;
+     input_texts.add(svg.text(130, 90, String(input_signals[i])).attr({opacity: "0"}));
+   }
+
+   output_rects.add(svg.rect(x, 60, 40, 40));
+   output_rects_labels.add(svg.text(x+12, 130, "S"));
+
+   function blink_text(text, i) {
+     opacity = i % 2
+     text.attr({opacity: opacity});
+   }
+
+   x = 200;
+   function run_animation(tick, digits_moved, finished) {
+     blink_text(shcp, tick);
+     if (digits_moved == 8) { blink_text(stcp, tick); }
+     var finished_on_next = false;
+     // Move input every 2 is until all of them moved
+     if (tick % 2 != 0) {
+       if (digits_moved <= 7) {
+         input_string_el.attr({text: input_string.substring(0, 7 - digits_moved), x: 35 + digits_moved * 15});
+         for (var j=0; j<=digits_moved; j++) {
+           input_texts[j].attr({opacity: 1});
+           input_texts[j].attr({x: x + 40 * digits_moved - 40 * j});
+         }
+       } else {
+         outputs.animate({transform: "t0 -40"}, 300, mina.easein);
+
+         finished_on_next = true;
+       }
+       digits_moved++;
+     }
+
+     if (finished) {
+       digits_moved = -1;
+       tick = -1;
+       finished_on_next = false;
+       stcp.attr({opacity: 0});
+       outputs.transform("t0 0");
+       for (var i=0; i<8; i++) {
+         input_texts[i].attr({x:200, opacity: 0});
+       }
+     }
+
+     setTimeout(run_animation, 500, tick+1, digits_moved, finished_on_next);
+   }
+
+   run_animation(0, 0, false);
+ });
+</script>
+
+<svg xmlns="http://www.w3.org/2000/svg"
+     id="shift_reg"
+     width="600"
+     height="200"
+     class="center-block"
+     stroke="black"
+     style="font-family: Monaco;
+     font-size: 24px;">
+</svg>

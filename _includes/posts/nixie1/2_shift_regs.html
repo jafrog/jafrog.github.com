@@ -1,0 +1,67 @@
+<script type="text/javascript">
+ document.addEventListener("DOMContentLoaded", function(event) {
+   var svg = Snap("#two_shift_regs"),
+   marker = svg.path("M 0 0 L 10 5 L 0 10 z").marker(0,0,3,3,1,5).attr({"viewBox": "0 0 10 10"}),
+   x = 0,
+   shift_reg1 = svg.g(),
+   input = svg.text(200, 90, "1").attr({opacity: 0}),
+   shcp = svg.text(40, 180, "SHCP").attr({"font-size": "28px", opacity: 0});
+
+   function blink_text(text, i) {
+     opacity = i % 2
+     text.attr({opacity: opacity});
+   }
+
+   svg.text(x, 90, "...");
+   x += 50;
+
+   for (var i=6; i<9; i++) {
+     shift_reg1.add(svg.rect(x, 60, 40, 40).attr({fill: "white", "stroke-width": 3}));
+     var text = "Q"+i, offset = 5;
+     if (i == 8) { text = "S"; offset = 12; }
+     shift_reg1.add(svg.text(x+offset, 130, text));
+     x += 40;
+   }
+
+   svg.line(x, 80, x+30, 80).attr({"marker-end": marker, "stroke-width": 3});
+   shift_reg1.clone().transform("t160 0");
+   svg.text(x+160, 90, "...")
+
+   x = 60;
+   function run_animation(tick, digits_moved, finished) {
+     console.log(digits_moved);
+     blink_text(shcp, tick);
+
+     var finished_on_next = false;
+     // Move input every 2 is until all of them moved
+     if (digits_moved == 3) { input.animate({transform: "t80 0"}, 300) }
+     if (tick % 2 != 0) {
+       input.attr({x: x + 40 * digits_moved, opacity: 1});
+       if (digits_moved == 4) { finished_on_next = true; }
+
+       digits_moved++;
+     }
+
+     if (finished) {
+       digits_moved = 0;
+       tick = -1;
+       finished_on_next = false;
+       input.attr({x: x, opacity: 0}).transform("t0 0");
+     }
+
+     setTimeout(run_animation, 500, tick+1, digits_moved, finished_on_next);
+   }
+
+   run_animation(0, 0, false);
+ });
+</script>
+
+<svg xmlns="http://www.w3.org/2000/svg"
+     id="two_shift_regs"
+     width="400"
+     height="200"
+     class="center-block"
+     stroke="black"
+     style="font-family: Monaco;
+     font-size: 24px;">
+</svg>
