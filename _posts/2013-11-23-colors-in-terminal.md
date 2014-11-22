@@ -93,69 +93,69 @@ done
 
 You should see something like this:
 
-<svg xmlns="http://www.w3.org/2000/svg" class="center-block" width="100%" height="220px">
-  <rect height="220" fill="#333" width="100%"/>
-  <text font-family="Verdana" font-size="14" y="30" x="20">
+<svg xmlns="http://www.w3.org/2000/svg" class="center-block" width="100%" height="300px">
+  <rect height="300" fill="#333" width="100%"/>
+  <text font-family="Verdana" font-size="20" y="50" x="20">
     <tspan fill="black">\e[30m</tspan>
-    <tspan fill="red" dy="22" x="20">\e[31m</tspan>
-    <tspan fill="green" dy="22" x="20">\e[32m</tspan>
-    <tspan fill="yellow" dy="22" x="20">\e[33m</tspan>
-    <tspan fill="blue" dy="22" x="20">\e[34m</tspan>
-    <tspan fill="magenta" dy="22" x="20">\e[35m</tspan>
-    <tspan fill="cyan" dy="22" x="20">\e[36m</tspan>
-    <tspan fill="white" dy="22" x="20">\e[37m</tspan>
+    <tspan fill="red" dy="30" x="20">\e[31m</tspan>
+    <tspan fill="green" dy="30" x="20">\e[32m</tspan>
+    <tspan fill="yellow" dy="30" x="20">\e[33m</tspan>
+    <tspan fill="blue" dy="30" x="20">\e[34m</tspan>
+    <tspan fill="magenta" dy="30" x="20">\e[35m</tspan>
+    <tspan fill="cyan" dy="30" x="20">\e[36m</tspan>
+    <tspan fill="white" dy="30" x="20">\e[37m</tspan>
   </text>
 
-  <text font-family="Verdana" font-size="14" y="30" x="95">
-    <tspan fill="black" stroke="black">\e[30;1m</tspan>
-    <tspan fill="red" dy="22" x="95" stroke="red">\e[31;1m</tspan>
-    <tspan fill="green" dy="22" x="95" stroke="green">\e[32;1m</tspan>
-    <tspan fill="yellow" dy="22" x="95" stroke="yellow">\e[33;1m</tspan>
-    <tspan fill="blue" dy="22" x="95" stroke="blue">\e[34;1m</tspan>
-    <tspan fill="magenta" dy="22" x="95" stroke="magenta">\e[35;1m</tspan>
-    <tspan fill="cyan" dy="22" x="95" stroke="cyan">\e[36;1m</tspan>
-    <tspan fill="white" dy="22" x="95" stroke="white">\e[37;1m</tspan>
+  <text font-family="Verdana" font-size="20" y="50" x="110">
+    <tspan fill="black" stroke="black" x="110">\e[30;1m</tspan>
+    <tspan fill="red" dy="30" x="110" stroke="red">\e[31;1m</tspan>
+    <tspan fill="green" dy="30" x="110" stroke="green">\e[32;1m</tspan>
+    <tspan fill="yellow" dy="30" x="110" stroke="yellow">\e[33;1m</tspan>
+    <tspan fill="blue" dy="30" x="110" stroke="blue">\e[34;1m</tspan>
+    <tspan fill="magenta" dy="30" x="110" stroke="magenta">\e[35;1m</tspan>
+    <tspan fill="cyan" dy="30" x="110" stroke="cyan">\e[36;1m</tspan>
+    <tspan fill="white" dy="30" x="110" stroke="white">\e[37;1m</tspan>
   </text>
 
-  <rect x="180" y="14" height="22" width="70" fill="black" />
-  <rect x="180" y="36" height="22" width="70" fill="red" />
-  <rect x="180" y="58" height="22" width="70" fill="green" />
-  <rect x="180" y="80" height="22" width="70" fill="yellow" />
-  <rect x="180" y="102" height="22" width="70" fill="blue" />
-  <rect x="180" y="124" height="22" width="70" fill="magenta" />
-  <rect x="180" y="146" height="22" width="70" fill="cyan" />
-  <rect x="180" y="168" height="22" width="70" fill="white" />
-  <text font-family="Verdana" font-size="14" y="30" x="180" fill="#222">
+  <rect x="215" y="30" height="30" width="110" fill="black" />
+  <rect x="215" y="60" height="30" width="110" fill="red" />
+  <rect x="215" y="90" height="30" width="110" fill="green" />
+  <rect x="215" y="120" height="30" width="110" fill="yellow" />
+  <rect x="215" y="150" height="30" width="110" fill="blue" />
+  <rect x="215" y="180" height="30" width="110" fill="magenta" />
+  <rect x="215" y="210" height="30" width="110" fill="cyan" />
+  <rect x="215" y="240" height="30" width="110" fill="white" />
+  <text font-family="Verdana" font-size="20" y="50" x="220" fill="#222">
     <tspan>\e[30;3m</tspan>
-    <tspan dy="22" x="180">\e[31;3m</tspan>
-    <tspan dy="22" x="180">\e[32;3m</tspan>
-    <tspan dy="22" x="180">\e[33;3m</tspan>
-    <tspan dy="22" x="180">\e[34;3m</tspan>
-    <tspan dy="22" x="180">\e[35;3m</tspan>
-    <tspan dy="22" x="180">\e[36;3m</tspan>
-    <tspan dy="22" x="180">\e[37;3m</tspan>
+    <tspan dy="30" x="220">\e[31;3m</tspan>
+    <tspan dy="30" x="220">\e[32;3m</tspan>
+    <tspan dy="30" x="220">\e[33;3m</tspan>
+    <tspan dy="30" x="220">\e[34;3m</tspan>
+    <tspan dy="30" x="220">\e[35;3m</tspan>
+    <tspan dy="30" x="220">\e[36;3m</tspan>
+    <tspan dy="30" x="220">\e[37;3m</tspan>
   </text>
 
-  <text font-family="Verdana" font-size="14" y="30" x="275">
+  <text font-family="Verdana" font-size="20" y="50" x="335">
     <tspan fill="black" style="text-decoration:underline;">\e[30;4m</tspan>
-    <tspan fill="red" dy="22" x="275" style="text-decoration:underline;">\e[31;4m</tspan>
-    <tspan fill="green" dy="22" x="275" style="text-decoration:underline;">\e[32;4m</tspan>
-    <tspan fill="yellow" dy="22" x="275" style="text-decoration:underline;">\e[33;4m</tspan>
-    <tspan fill="blue" dy="22" x="275" style="text-decoration:underline;">\e[34;4m</tspan>
-    <tspan fill="magenta" dy="22" x="275" style="text-decoration:underline;">\e[35;4m</tspan>
-    <tspan fill="cyan" dy="22" x="275" style="text-decoration:underline;">\e[36;4m</tspan>
-    <tspan fill="white" dy="22" x="275" style="text-decoration:underline;">\e[37;4m</tspan>
+    <tspan fill="red" dy="30" x="335" style="text-decoration:underline;">\e[31;4m</tspan>
+    <tspan fill="green" dy="30" x="335" style="text-decoration:underline;">\e[32;4m</tspan>
+    <tspan fill="yellow" dy="30" x="335" style="text-decoration:underline;">\e[33;4m</tspan>
+    <tspan fill="blue" dy="30" x="335" style="text-decoration:underline;">\e[34;4m</tspan>
+    <tspan fill="magenta" dy="30" x="335" style="text-decoration:underline;">\e[35;4m</tspan>
+    <tspan fill="cyan" dy="30" x="335" style="text-decoration:underline;">\e[36;4m</tspan>
+    <tspan fill="white" dy="30" x="335" style="text-decoration:underline;">\e[37;4m</tspan>
   </text>
 
-  <text font-family="Verdana" font-size="14" y="30" x="365">
+  <text font-family="Verdana" font-size="20" y="50" x="445">
     <tspan fill="7e7e7e">\e[30m</tspan>
-    <tspan fill="#ff7e7e" dy="22" x="365">\e[91m</tspan>
-    <tspan fill="#7eff43" dy="22" x="365">\e[92m</tspan>
-    <tspan fill="#ffff7e" dy="22" x="365">\e[93m</tspan>
-    <tspan fill="#7e7eff" dy="22" x="365">\e[94m</tspan>
-    <tspan fill="#ff7eff" dy="22" x="365">\e[95m</tspan>
-    <tspan fill="#7effff" dy="22" x="365">\e[96m</tspan>
-    <tspan fill="#eee" dy="22" x="365">\e[97m</tspan>
+    <tspan fill="#ff7e7e" dy="30" x="445">\e[91m</tspan>
+    <tspan fill="#7eff43" dy="30" x="445">\e[92m</tspan>
+    <tspan fill="#ffff7e" dy="30" x="445">\e[93m</tspan>
+    <tspan fill="#7e7eff" dy="30" x="445">\e[94m</tspan>
+    <tspan fill="#ff7eff" dy="30" x="445">\e[95m</tspan>
+    <tspan fill="#7effff" dy="30" x="445">\e[96m</tspan>
+    <tspan fill="#eee" dy="30" x="445">\e[97m</tspan>
   </text>
 </svg>
 
@@ -212,7 +212,9 @@ To enable 256 colors support, you have to set up your terminal as `xterm-256colo
 To list all colors available in 256 color mode with their codes run
 
 {% highlight bash %}
-> for code in {0..255}; do echo -e "\e[38;5;${code}m"'\\e[38;5;'"$code"m"\e[0m"; done
+> for code in {0..255}
+    do echo -e "\e[38;5;${code}m"'\\e[38;5;'"$code"m"\e[0m"
+  done
 {% endhighlight %}
 
 **Bonus**: To list all colors available in `Emacs` run `M-x list-colors-display`.
