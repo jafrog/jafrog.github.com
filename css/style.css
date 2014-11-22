@@ -259,7 +259,7 @@ html {
 body {
   font-family: Raleway, "Times New Roman", Times, serif;
   font-size: 20px;
-  line-height: 2;
+  line-height: 1.8;
   color: #333333;
   background-color: #ffffff;
 }
@@ -298,7 +298,7 @@ img {
 }
 .img-thumbnail {
   padding: 4px;
-  line-height: 2;
+  line-height: 1.8;
   background-color: #ffffff;
   border: 1px solid #dddddd;
   border-radius: 4px;
@@ -312,8 +312,8 @@ img {
   border-radius: 50%;
 }
 hr {
-  margin-top: 40px;
-  margin-bottom: 40px;
+  margin-top: 36px;
+  margin-bottom: 36px;
   border: 0;
   border-top: 1px solid #eeeeee;
 }
@@ -328,10 +328,10 @@ hr {
   border: 0;
 }
 p {
-  margin: 0 0 20px;
+  margin: 0 0 18px;
 }
 .lead {
-  margin-bottom: 40px;
+  margin-bottom: 36px;
   font-size: 23px;
   font-weight: 200;
   line-height: 1.4;
@@ -438,8 +438,8 @@ h6 .small,
 h1,
 h2,
 h3 {
-  margin-top: 40px;
-  margin-bottom: 20px;
+  margin-top: 36px;
+  margin-bottom: 18px;
 }
 h1 small,
 h2 small,
@@ -452,8 +452,8 @@ h3 .small {
 h4,
 h5,
 h6 {
-  margin-top: 20px;
-  margin-bottom: 20px;
+  margin-top: 18px;
+  margin-bottom: 18px;
 }
 h4 small,
 h5 small,
@@ -488,14 +488,14 @@ h6,
   font-size: 17px;
 }
 .page-header {
-  padding-bottom: 19px;
-  margin: 80px 0 40px;
+  padding-bottom: 17px;
+  margin: 72px 0 36px;
   border-bottom: 1px solid #eeeeee;
 }
 ul,
 ol {
   margin-top: 0;
-  margin-bottom: 20px;
+  margin-bottom: 18px;
 }
 ul ul,
 ol ul,
@@ -520,11 +520,11 @@ ol ol {
   padding-left: 0;
 }
 dl {
-  margin-bottom: 40px;
+  margin-bottom: 36px;
 }
 dt,
 dd {
-  line-height: 2;
+  line-height: 1.8;
 }
 dt {
   font-weight: bold;
@@ -576,8 +576,8 @@ abbr.initialism {
   text-transform: uppercase;
 }
 blockquote {
-  padding: 20px 40px;
-  margin: 0 0 40px;
+  padding: 18px 36px;
+  margin: 0 0 36px;
   border-left: 5px solid #fe4365;
 }
 blockquote p {
@@ -590,7 +590,7 @@ blockquote p:last-child {
 }
 blockquote small {
   display: block;
-  line-height: 2;
+  line-height: 1.8;
   color: #333333;
 }
 blockquote small:before {
@@ -620,9 +620,9 @@ blockquote:after {
   content: "";
 }
 address {
-  margin-bottom: 40px;
+  margin-bottom: 36px;
   font-style: normal;
-  line-height: 2;
+  line-height: 1.8;
 }
 code,
 kbd,
@@ -640,10 +640,10 @@ code {
 }
 pre {
   display: block;
-  padding: 19.5px;
-  margin: 0 0 20px;
+  padding: 17.5px;
+  margin: 0 0 18px;
   font-size: 19px;
-  line-height: 2;
+  line-height: 1.8;
   word-break: break-all;
   word-wrap: break-word;
   color: #333333;
@@ -1367,7 +1367,7 @@ th {
 }
 .table {
   width: 100%;
-  margin-bottom: 40px;
+  margin-bottom: 36px;
 }
 .table > thead > tr > th,
 .table > tbody > tr > th,
@@ -1376,7 +1376,7 @@ th {
 .table > tbody > tr > td,
 .table > tfoot > tr > td {
   padding: 8px;
-  line-height: 2;
+  line-height: 1.8;
   vertical-align: top;
   border-top: 1px solid #dddddd;
 }
@@ -1515,7 +1515,7 @@ table th[class*="col-"] {
 @media (max-width: 767px) {
   .table-responsive {
     width: 100%;
-    margin-bottom: 30px;
+    margin-bottom: 27px;
     overflow-y: hidden;
     overflow-x: scroll;
     -ms-overflow-style: -ms-autohiding-scrollbar;
@@ -1568,7 +1568,7 @@ legend {
   display: block;
   width: 100%;
   padding: 0;
-  margin-bottom: 40px;
+  margin-bottom: 36px;
   font-size: 30px;
   line-height: inherit;
   color: #333333;
@@ -1619,17 +1619,17 @@ output {
   display: block;
   padding-top: 9px;
   font-size: 20px;
-  line-height: 2;
+  line-height: 1.8;
   color: #333333;
   vertical-align: middle;
 }
 .form-control {
   display: block;
   width: 100%;
-  height: 58px;
+  height: 54px;
   padding: 8px 12px;
   font-size: 20px;
-  line-height: 2;
+  line-height: 1.8;
   color: #333333;
   vertical-align: middle;
   background-color: #ffffff;
@@ -1674,7 +1674,7 @@ textarea.form-control {
 .radio,
 .checkbox {
   display: block;
-  min-height: 40px;
+  min-height: 36px;
   margin-top: 10px;
   margin-bottom: 10px;
   padding-left: 20px;
@@ -1907,7 +1907,7 @@ textarea.input-lg {
   white-space: nowrap;
   padding: 8px 12px;
   font-size: 20px;
-  line-height: 2;
+  line-height: 1.8;
   border-radius: 4px;
   -webkit-user-select: none;
   -moz-user-select: none;
@@ -2910,7 +2910,7 @@ input[type="button"].btn-block {
 }
 .dropdown-menu .divider {
   height: 1px;
-  margin: 19px 0;
+  margin: 17px 0;
   overflow: hidden;
   background-color: #e5e5e5;
 }
@@ -2919,7 +2919,7 @@ input[type="button"].btn-block {
   padding: 3px 20px;
   clear: both;
   font-weight: normal;
-  line-height: 2;
+  line-height: 1.8;
   color: #333333;
   white-space: nowrap;
 }
@@ -2960,7 +2960,7 @@ input[type="button"].btn-block {
   display: block;
   padding: 3px 20px;
   font-size: 17px;
-  line-height: 2;
+  line-height: 1.8;
   color: #b3b3b3;
 }
 .dropdown-backdrop {
@@ -3429,7 +3429,7 @@ textarea.input-group-sm > .input-group-btn > .btn {
 }
 .nav .nav-divider {
   height: 1px;
-  margin: 19px 0;
+  margin: 17px 0;
   overflow: hidden;
   background-color: #e5e5e5;
 }
@@ -3445,7 +3445,7 @@ textarea.input-group-sm > .input-group-btn > .btn {
 }
 .nav-tabs > li > a {
   margin-right: 2px;
-  line-height: 2;
+  line-height: 1.8;
   border: 1px solid transparent;
   border-radius: 4px 4px 0 0;
 }
@@ -3601,7 +3601,7 @@ textarea.input-group-sm > .input-group-btn > .btn {
 .navbar {
   position: relative;
   min-height: 50px;
-  margin-bottom: 40px;
+  margin-bottom: 36px;
   border: 1px solid transparent;
 }
 .navbar:before,
@@ -3756,9 +3756,9 @@ textarea.input-group-sm > .input-group-btn > .btn {
 }
 .navbar-brand {
   float: left;
-  padding: 5px 15px;
+  padding: 7px 15px;
   font-size: 25px;
-  line-height: 40px;
+  line-height: 36px;
 }
 .navbar-brand:hover,
 .navbar-brand:focus {
@@ -3795,12 +3795,12 @@ textarea.input-group-sm > .input-group-btn > .btn {
   }
 }
 .navbar-nav {
-  margin: 2.5px -15px;
+  margin: 3.5px -15px;
 }
 .navbar-nav > li > a {
   padding-top: 10px;
   padding-bottom: 10px;
-  line-height: 40px;
+  line-height: 36px;
 }
 @media (max-width: 767px) {
   .navbar-nav .open .dropdown-menu {
@@ -3817,7 +3817,7 @@ textarea.input-group-sm > .input-group-btn > .btn {
     padding: 5px 15px 5px 25px;
   }
   .navbar-nav .open .dropdown-menu > li > a {
-    line-height: 40px;
+    line-height: 36px;
   }
   .navbar-nav .open .dropdown-menu > li > a:hover,
   .navbar-nav .open .dropdown-menu > li > a:focus {
@@ -3833,8 +3833,8 @@ textarea.input-group-sm > .input-group-btn > .btn {
     float: left;
   }
   .navbar-nav > li > a {
-    padding-top: 5px;
-    padding-bottom: 5px;
+    padding-top: 7px;
+    padding-bottom: 7px;
   }
 }
 @media (min-width: 768px) {
@@ -3853,8 +3853,8 @@ textarea.input-group-sm > .input-group-btn > .btn {
   border-bottom: 1px solid transparent;
   -webkit-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 1px 0 rgba(255, 255, 255, 0.1);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 1px 0 rgba(255, 255, 255, 0.1);
-  margin-top: -4px;
-  margin-bottom: -4px;
+  margin-top: -2px;
+  margin-bottom: -2px;
 }
 @media (min-width: 768px) {
   .navbar-form .form-group {
@@ -3910,13 +3910,13 @@ textarea.input-group-sm > .input-group-btn > .btn {
   right: 0;
 }
 .navbar-btn {
-  margin-top: -4px;
-  margin-bottom: -4px;
+  margin-top: -2px;
+  margin-bottom: -2px;
 }
 .navbar-text {
   float: left;
-  margin-top: 5px;
-  margin-bottom: 5px;
+  margin-top: 7px;
+  margin-bottom: 7px;
 }
 @media (min-width: 768px) {
   .navbar-text {
@@ -4124,7 +4124,7 @@ textarea.input-group-sm > .input-group-btn > .btn {
 }
 .breadcrumb {
   padding: 8px 15px;
-  margin-bottom: 40px;
+  margin-bottom: 36px;
   list-style: none;
   background-color: #f5f5f5;
   border-radius: 4px;
@@ -4143,7 +4143,7 @@ textarea.input-group-sm > .input-group-btn > .btn {
 .pagination {
   display: inline-block;
   padding-left: 0;
-  margin: 40px 0;
+  margin: 36px 0;
   border-radius: 4px;
 }
 .pagination > li {
@@ -4154,7 +4154,7 @@ textarea.input-group-sm > .input-group-btn > .btn {
   position: relative;
   float: left;
   padding: 8px 12px;
-  line-height: 2;
+  line-height: 1.8;
   text-decoration: none;
   background-color: #ffffff;
   border: 1px solid #dddddd;
@@ -4232,7 +4232,7 @@ textarea.input-group-sm > .input-group-btn > .btn {
 }
 .pager {
   padding-left: 0;
-  margin: 40px 0;
+  margin: 36px 0;
   list-style: none;
   text-align: center;
 }
@@ -4391,7 +4391,7 @@ a.list-group-item.active > .badge,
   margin-bottom: 30px;
   font-size: 30px;
   font-weight: 200;
-  line-height: 3;
+  line-height: 2.7;
   color: inherit;
   background-color: #f7f7f7;
 }
@@ -4420,7 +4420,7 @@ a.list-group-item.active > .badge,
 }
 .thumbnail {
   padding: 4px;
-  line-height: 2;
+  line-height: 1.8;
   background-color: #ffffff;
   border: 1px solid #dddddd;
   border-radius: 4px;
@@ -4430,7 +4430,7 @@ a.list-group-item.active > .badge,
   max-width: 100%;
   height: auto;
   display: block;
-  margin-bottom: 40px;
+  margin-bottom: 36px;
 }
 .thumbnail > img {
   display: block;
@@ -4450,7 +4450,7 @@ a.thumbnail.active {
 }
 .alert {
   padding: 15px;
-  margin-bottom: 40px;
+  margin-bottom: 36px;
   border: 1px solid transparent;
   border-radius: 4px;
 }
@@ -4555,8 +4555,8 @@ a.thumbnail.active {
 }
 .progress {
   overflow: hidden;
-  height: 40px;
-  margin-bottom: 40px;
+  height: 36px;
+  margin-bottom: 36px;
   background-color: #f5f5f5;
   border-radius: 4px;
   -webkit-box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
@@ -4567,7 +4567,7 @@ a.thumbnail.active {
   width: 0%;
   height: 100%;
   font-size: 17px;
-  line-height: 40px;
+  line-height: 36px;
   color: #ffffff;
   text-align: center;
   background-color: #fe4365;
@@ -4716,7 +4716,7 @@ a.list-group-item.active:focus .list-group-item-text {
   line-height: 1.3;
 }
 .panel {
-  margin-bottom: 40px;
+  margin-bottom: 36px;
   background-color: #ffffff;
   border: 1px solid transparent;
   border-radius: 4px;
@@ -5076,14 +5076,14 @@ button.close {
 .modal-header {
   padding: 15px;
   border-bottom: 1px solid #e5e5e5;
-  min-height: 17px;
+  min-height: 16.8px;
 }
 .modal-header .close {
   margin-top: -2px;
 }
 .modal-title {
   margin: 0;
-  line-height: 2;
+  line-height: 1.8;
 }
 .modal-body {
   position: relative;
