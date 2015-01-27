@@ -4,6 +4,8 @@ title: The perils of Rails constant lookup
 summary: The war story about how Rails failed to find one little class
 ---
 
+**Update: As [@yves_senn](https://twitter.com/yves_senn) and [@fxn](https://twitter.com/fxn) pointed out there's a [Rails Guide](http://edgeguides.rubyonrails.org/autoloading_and_reloading_constants.html#autoloading-within-singleton-classes) now on the subject of autloading and constants reloading. Kudos to [@fxn](https://twitter.com/fxn)!**
+
 It all started with one innocent refactoring. We had two classes defined in the same file. Say `Foo` and `Foo::Bar`. Naturally, as `Foo` lives in `app/models/foo.rb` the place for `Foo::Bar` is to be `app/models/foo/bar.rb`. As `app/models/` is listed among `autoload_paths` I thought nothing could go wrong. As soon as `Bar` is referenced from inside the `Foo` its path will be resolved and it would be loaded from `app/models/foo/bar.rb`.
 
 The change was tested and successfully deployed to production. The hit came from an unexpected side - Rake task using this code failed with `Uninitialized constant Bar`.
