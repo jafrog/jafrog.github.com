@@ -6189,7 +6189,7 @@ kbd {
   margin-top: 30px;
 }
 .content img {
-  max-width: 500px;
+  max-width: 80%;
   margin: 50px auto;
   border-radius: 5px;
   display: block;
