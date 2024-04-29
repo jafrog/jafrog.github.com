@@ -9,22 +9,22 @@ jobs:
   github-pages:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout
-      - uses: ruby/setup-ruby
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
         with:
           ruby-version: 3.3
           bundler-cache: true
       - name: Setup Node
-        uses: actions/setup-node
+        uses: actions/setup-node@v4
         with:
           node-version: '18'
       - run: npm install
       - name: Build site
-        uses: limjh16/jekyll-action-ts
+        uses: limjh16/jekyll-action-ts@v2
         with:
           enable_cache: true
       - name: Deploy
-        uses: peaceiris/actions-gh-pages
+        uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: $
           publish_dir: ./_site
