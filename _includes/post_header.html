@@ -1,6 +1,7 @@
-<div class="row post-title">
-  <div class="col-lg-8 col-lg-offset-2">
-    <time class="date" datetime="{{ page.date }}">{{ page.date | date: "%d %B %Y" }}</time>
-    <h1 class="title">{{ page.title }}</h1>
+<div class="pt-20">
+  <div class="flex items-center pb-2">
+    <img src="/assets/calendar.svg" alt="Time" class="w-4 h-4" />
+    <time class="pl-1 text-gray-500" datetime="{{ page.date }}">{{ page.date | date: "%d %B %Y" }}</time>
   </div>
+  <div class="text-3xl pb-10 font-medium text-sky-500">{{ page.title }}</div>
 </div>

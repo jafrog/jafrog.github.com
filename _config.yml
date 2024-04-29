@@ -1,1 +1,10 @@
+url: 'https://jafrog.com'
+baseurl: ''
 markdown: kramdown
+plugins:
+  - jekyll-postcss
+
+postcss:
+  cache: false
+
+highlighter: rouge

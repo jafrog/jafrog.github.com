@@ -1,1 +1,14 @@
-This is my dev blog on [github:pages](http://pages.github.com). It uses [Jekyll](https://github.com/mojombo/jekyll) as a static site generator, [Less](http://lesscss.org) as better CSS, [Twitter Bootstrap](http://twitter.github.com/bootstrap/) with [Bootswatch](http://bootswatch.com) Simplex theme and [Fontawesome](http://fortawesome.github.com/Font-Awesome/) as a replacement for lacking design skills, [Guard](https://github.com/guard/guard) for funny little notifications during development and [Disqus](http://disqus.com/) to give people voice.
+# Run locally
+
+```
+bundle
+bundle exec jekyll serve --livereload
+```
+
+# Deploy on Github pages
+
+1. `bundle lock --add-platform x86_64-linux`
+
+# Todo
+
+- [ ] Update GA

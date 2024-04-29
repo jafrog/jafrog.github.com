@@ -1,0 +1,30 @@
+---
+---
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+p {
+    @apply text-base leading-relaxed mb-5;
+}
+
+h1 {
+    @apply text-3xl font-semibold mt-10 mb-7;
+}
+
+h3 {
+    @apply text-xl font-bold mt-10 mb-7;
+}
+
+/*code {*/
+/*    @apply bg-sky-50 px-1 py-1 rounded;*/
+/*}*/
+
+.highlighter-rouge {
+    @apply my-4;
+}
+
+.highlight {
+    @apply my-4;
+}

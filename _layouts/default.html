@@ -1,9 +1,13 @@
 <!DOCTYPE HTML>
 <head>
   <meta http-equiv='Content-Type' content='text/html; charset=utf-8' />
-  <link rel="stylesheet" href="/css/style.css" type="text/css" media="screen" />
-  <link rel="stylesheet" href="/css/pygments.css" type="text/css" media="screen" />
-  <link rel="stylesheet" href="/css/font-awesome.css" type="text/css" media="screen" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/main.css" type="text/css" media="screen" />
+  <link rel="stylesheet" href="/css/syntax.css" type="text/css" media="screen" />
+<!--  <link rel="stylesheet" href="/css/pygments.css" type="text/css" media="screen" />-->
 
   <!-- Google analytics -->
   <script type="text/javascript">
@@ -20,7 +24,15 @@
 
   </script>
 
-  <title>Jafrog's dev blog</title>
+  <title>jafrog</title>
 </head>
 
-{{content}}
+<body>
+  <div class="mx-auto max-w-7xl sm:px-6 lg:px-8 bg-slate-50 font-plex">
+    <div class="mx-auto max-w-5xl sm:px-8 lg:px-24">
+      {% include header.html %}
+
+      {{content}}
+    </div>
+  </div>
+</body>

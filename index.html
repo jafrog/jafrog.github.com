@@ -1,29 +1,24 @@
 ---
 layout: default
 ---
-<body>
-  <div class="fluid-container">
-    {% include index_header.html %}
+<h2 class="text-2xl text-sky-600 font-medium pt-12 pb-10">
+  All posts
+</h2>
+
+{% for post in site.posts %}
+<div class="pb-10">
+  <div class="flex items-center pb-2">
+    <img src="/assets/calendar.svg" alt="Time" class="w-4 h-4" />
+    <time class="pl-1 text-gray-500" datetime="{{ post.date }}">{{ post.date | date: "%d %B %Y" }}</time>
   </div>
-  <div class="fluid-container">
-    <div class="row">
-      <div class="col-lg-8 col-lg-offset-2 content">
-        {% for post in site.posts %}
-        <div class="row post">
-          <time class="date" datetime="{{ post.date }}">{{ post.date | date: "%d %B %Y" }}</time>
-          <h2 class="title">
-            <a class="post-header" href="{{ post.url }}">
-              {{ post.title }}
-            </a>
-          </h2>
-          <p class="summary">
-            {{ post.summary }}
-            <a class="post-header" href="{{ post.url }}">&raquo;</a>
-          </p>
-        </div>
-        <div class="border center-block"></div>
-        {% endfor %}
-      </div>
-    </div>
-  </div>
-</body>
+  <h2 class="text-lg font-medium pb-2">
+    <a href="{{ post.url }}">
+      {{ post.title }}
+    </a>
+  </h2>
+  <p class="summary">
+    {{ post.summary }}
+    <a class="post-header" href="{{ post.url }}">&raquo;</a>
+  </p>
+</div>
+{% endfor %}

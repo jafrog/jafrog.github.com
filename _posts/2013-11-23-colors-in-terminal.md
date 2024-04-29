@@ -1,8 +1,8 @@
 ---
 layout: post
 summary: A guide to making text in terminal more fun
+highlighter: rouge
 ---
-
 If you use terminal on a daily basis I bet you played with some color settings at least once. Colorizing `ls` output, shell prompt, `git` logs - those are very common tasks. And it's not surprising as color helps us parse information faster, pay attention to important parts and generally makes things prettier. Everybody loves pretty things, especially the ones you have to look at every day.
 
 This post is an attempt to gather in one place and structure things I know about colors in terminal.
@@ -11,57 +11,59 @@ This post is an attempt to gather in one place and structure things I know about
 
 You've probably seen things like `\e[32m` or `\x1b[1;31m`. These are [ANSI escape codes](http://en.wikipedia.org/wiki/ANSI_escape_code) used for defining a color. All ANSI escape sequences start with, well, `ESC`. There're several ways of encoding an `ESC`:
 
-<div class="row">
-  <div class="center-block" style="width: 50%; background-color: white;">
-    <table class="table table-bordered">
-      <tr>
-	<th>Shell</th>
-	<td><code>\e</code></td>
-      </tr>
-      <tr>
-	<th>ASCII Hex</th>
-	<td><code>\0x1B</code></td>
-      </tr>
-      <tr>
-	<th>ASCII Oct</th>
-	<td><code>\033</code></td>
-      </tr>
+<div class="width-full flex justify-center">
+    <table class="table-auto my-5">
+        <tbody>
+            <tr>
+                <td class="font-semibold py-3">Shell</td>
+                <td class="pl-5"><code>\e</code></td>
+            </tr>
+            <tr>
+                <td class="font-semibold py-3">ASCII Hex</td>
+                <td class="pl-5"><code>\0x1B</code></td>
+            </tr>
+            <tr>
+                <td class="font-semibold py-3">ASCII Oct</td>
+                <td class="pl-5"><code>\033</code></td>
+            </tr>
+        </tbody>
     </table>
-  </div>
 </div>
 
 So `\x1b[31;4m`, `\e[31;4m` and `\033[31;4m` are different ways to write the same sequence. Let's look at the structure of this sequence.
 
-<svg xmlns="http://www.w3.org/2000/svg" class="center-block" width="350px" height="200px">
-  <rect fill="white" stroke-width="2" />
-  <text font-family="Verdana" font-size="14" y="40">
-    <tspan fill="#4ECDC4" dx="75">Part of the CSI</tspan>
-    <tspan fill="#FF6B6B" dx="40">Finishing symbol</tspan>
-  </text>
-  <polyline stroke="#4ECDC4" fill="none" stroke-width="3" points="105,60 105,50 135,50 135,60"/>
-  <polyline stroke="#FF6B6B" fill="none" stroke-width="3" points="245,60 245,50 290,50 290,60"/>
-  <text font-family="Verdana" font-size="45" y="100">
-    <tspan fill="#556270">\x1b</tspan>
-    <tspan fill="#4ECDC4" dx="-10">[</tspan>
-    <tspan fill="#C7F464" dx="-10">31;4</tspan>
-    <tspan fill="#FF6B6B" dx="-10">m</tspan>
-  </text>
-  <polyline stroke="#556270" fill="none" stroke-width="3" points="2,110 2,120 105,120 105,110"/>
-  <polyline stroke="#C7F464" fill="none" stroke-width="3" points="135,110 135,120 245,120 245,110"/>
-  <text font-family="Verdana" font-size="14" y="140">
-    <tspan fill="#556270" dx="5">ESC character</tspan>
-    <tspan fill="#556270" dx="-100" dy="20">in Hex ASCII</tspan>
-    <tspan fill="#C7F464" dx="45" dy="-20">Color codes</tspan>
-  </text>
-</svg>
+<div class="w-full flex justify-center py-5">
+    <svg xmlns="http://www.w3.org/2000/svg" width="350px" height="200px">
+      <rect fill="white" stroke-width="2" />
+      <text font-family="Verdana" font-size="14" y="40">
+        <tspan fill="#4ECDC4" dx="75">Part of the CSI</tspan>
+        <tspan fill="#FF6B6B" dx="40">Finishing symbol</tspan>
+      </text>
+      <polyline stroke="#4ECDC4" fill="none" stroke-width="3" points="105,60 105,50 135,50 135,60"/>
+      <polyline stroke="#FF6B6B" fill="none" stroke-width="3" points="245,60 245,50 290,50 290,60"/>
+      <text font-family="Verdana" font-size="45" y="100">
+        <tspan fill="#556270">\x1b</tspan>
+        <tspan fill="#4ECDC4" dx="-10">[</tspan>
+        <tspan fill="#C7F464" dx="-10">31;4</tspan>
+        <tspan fill="#FF6B6B" dx="-10">m</tspan>
+      </text>
+      <polyline stroke="#556270" fill="none" stroke-width="3" points="2,110 2,120 105,120 105,110"/>
+      <polyline stroke="#C7F464" fill="none" stroke-width="3" points="135,110 135,120 245,120 245,110"/>
+      <text font-family="Verdana" font-size="14" y="140">
+        <tspan fill="#556270" dx="5">ESC character</tspan>
+        <tspan fill="#556270" dx="-100" dy="20">in Hex ASCII</tspan>
+        <tspan fill="#C7F464" dx="45" dy="-20">Color codes</tspan>
+      </text>
+    </svg>
+</div>
 
 `\x1b[` is a **Control Sequence Introducer** that consists of hexadecimal ASCII `ESC` character code and a `[`.
 
 `31;4` is a list of instructions separated by `;`. Usually this list is formatted as follows:
 
-{% highlight bash %}
+```bash
 [<PREFIX>];[<COLOR>];[<TEXT DECORATION>]
-{% endhighlight %}
+```
 
 For example `31;4` means "no prefix, color - red, underline". `<PREFIX>` is used for 256 color mode. More on color modes later.
 
@@ -69,9 +71,9 @@ Finally `m` indicates the end of control sequence so terminal would know not to 
 
 The following command should print "hello" in red underscore text:
 
-{% highlight bash %}
+```bash
 > echo "\x1b[31;4mHello\x1b[0m"
-{% endhighlight %}
+```
 
 `\x1b[0m` means "reset all attributes".
 
@@ -81,7 +83,7 @@ Back in the old days terminals were different. Some of them could display only 1
 
 To list all available colors in 16-color mode run:
 
-{% highlight bash %}
+```bash
 > for code in {30..37}; do \
 echo -en "\e[${code}m"'\\e['"$code"'m'"\e[0m"; \
 echo -en "  \e[$code;1m"'\\e['"$code"';1m'"\e[0m"; \
@@ -89,12 +91,13 @@ echo -en "  \e[$code;3m"'\\e['"$code"';3m'"\e[0m"; \
 echo -en "  \e[$code;4m"'\\e['"$code"';4m'"\e[0m"; \
 echo -e "  \e[$((code+60))m"'\\e['"$((code+60))"'m'"\e[0m"; \
 done
-{% endhighlight %}
+```
 
 You should see something like this:
 
-<svg xmlns="http://www.w3.org/2000/svg" class="center-block" width="100%" height="300px">
-  <rect height="300" fill="#333" width="100%"/>
+<div class="w-full flex justify-center py-5">
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="300px">
+  <rect height="300" fill="#fff" width="100%"/>
   <text font-family="Verdana" font-size="20" y="50" x="20">
     <tspan fill="black">\e[30m</tspan>
     <tspan fill="red" dy="30" x="20">\e[31m</tspan>
@@ -158,49 +161,46 @@ You should see something like this:
     <tspan fill="#eee" dy="30" x="445">\e[97m</tspan>
   </text>
 </svg>
+</div>
 
 Or, in fact, something completely different! You can set up red to look like blue but I wouldn't recommend such a deception as it probably mess up some color themes in `bash`, `zsh` or anything else that runs in a terminal.
 
-As you can see from command's output there're several sets of color codes:
+As you can see from command's output there are several sets of color codes:
 
-<div class="row">
-  <div class="center-block" style="width: 50%; background-color: white;">
+<div class="width-full flex justify-center my-5">
     <table class="table table-bordered">
       <tr>
-		<th>Basic 8 colors</th>
-		<td>30..37</td>
+        <td class="font-semibold py-3">Basic 8 colors</td>
+        <td class="pl-5">30..37</td>
       </tr>
       <tr>
-		<th>Basic "high contrast" colors</th>
-		<td>90..97</td>
+        <td class="font-semibold py-3">Basic "high contrast" colors</td>
+        <td class="pl-5">90..97</td>
       </tr>
       <tr>
-		<th>xterm-256 colors</th>
-		<td>0..255</td>
+        <td class="font-semibold py-3">xterm-256 colors</td>
+        <td class="pl-5">0..255</td>
       </tr>
     </table>
-  </div>
 </div>
 
 And a set of text decoration indicators that should be placed right after the color code:
 
-<div class="row">
-  <div class="center-block" style="width: 50%; background-color: white;">
+<div class="width-full flex justify-center my-5">
     <table class="table table-bordered">
       <tr>
-		<th>Bold</th>
-		<td>1</td>
+        <td class="font-semibold py-3">Bold</td>
+        <td class="pl-5">1</td>
       </tr>
       <tr>
-		<th>Underscore</th>
-		<td>4</td>
+        <td class="font-semibold py-3">Underscore</td>
+        <td class="pl-5">4</td>
       </tr>
       <tr>
-		<th>Background</th>
-		<td>3</td>
+        <td class="font-semibold py-3">Background</td>
+        <td class="pl-5">3</td>
       </tr>
     </table>
-  </div>
 </div>
 
 If color code is prefixed by `38;5` it is interpreted as one of 256 colors. E.g. `\e[38;5;91m` will color following text purple, while `\e[91m` will indicate bright red.
@@ -211,10 +211,10 @@ To enable 256 colors support, you have to set up your terminal as `xterm-256colo
 
 To list all colors available in 256 color mode with their codes run
 
-{% highlight bash %}
+```bash
 > for code in {0..255}
     do echo -e "\e[38;5;${code}m"'\\e[38;5;'"$code"m"\e[0m"
   done
-{% endhighlight %}
+```
 
 **Bonus**: To list all colors available in `Emacs` run `M-x list-colors-display`.
