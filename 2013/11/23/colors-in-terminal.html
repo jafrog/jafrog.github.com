@@ -1,0 +1,278 @@
+<!DOCTYPE HTML>
+<head>
+  <meta http-equiv='Content-Type' content='text/html; charset=utf-8' />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/main.css" type="text/css" media="screen" />
+  <link rel="stylesheet" href="/css/syntax.css" type="text/css" media="screen" />
+<!--  <link rel="stylesheet" href="/css/pygments.css" type="text/css" media="screen" />-->
+
+  <!-- Google analytics -->
+  <script type="text/javascript">
+
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-30366699-2']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+
+  </script>
+
+  <title>jafrog</title>
+</head>
+
+<body>
+  <div class="mx-auto max-w-7xl sm:px-6 lg:px-8 bg-slate-50 font-plex">
+    <div class="mx-auto max-w-5xl sm:px-8 lg:px-24">
+      <div class="flex justify-between sm:py-6 md:py-12 border-b">
+    <div class="flex flex-col justify-start">
+        <h1 class="text-3xl font-semibold">
+            <a href="/">jafrog's dev blog</a>
+        </h1>
+        <div class="flex justify-start items-center mt-2`">
+            <a href="https://www.github.com/jafrog">
+                <img src="/assets/github.svg" alt="Github" class="w-6 h-6" />
+            </a>
+            <a href="https://www.linkedin.com/in/irinabednova/">
+                <img src="/assets/linkedin.svg" alt="Linkedin" class="w-6 h-6">
+            </a>
+        </div>
+    </div>
+    <div class="right-0 flex items-center">
+        <img src="/assets/avatar.jpg" alt="jafrog" class="h-16 w-16 rounded-full" />
+    </div>
+</div>
+
+      <script src="/assets/snap.svg.js"></script>
+<div class="pt-20">
+  <div class="flex items-center pb-2">
+    <img src="/assets/calendar.svg" alt="Time" class="w-4 h-4" />
+    <time class="pl-1 text-gray-500" datetime="2013-11-23 00:00:00 +0000">23 November 2013</time>
+  </div>
+  <div class="text-3xl pb-10 font-medium text-sky-500">Colors In Terminal</div>
+</div>
+<div class="pb-20">
+  <p>If you use terminal on a daily basis I bet you played with some color settings at least once. Colorizing <code class="language-plaintext highlighter-rouge">ls</code> output, shell prompt, <code class="language-plaintext highlighter-rouge">git</code> logs - those are very common tasks. And it’s not surprising as color helps us parse information faster, pay attention to important parts and generally makes things prettier. Everybody loves pretty things, especially the ones you have to look at every day.</p>
+
+<p>This post is an attempt to gather in one place and structure things I know about colors in terminal.</p>
+
+<h3 id="escape-sequences">Escape sequences</h3>
+
+<p>You’ve probably seen things like <code class="language-plaintext highlighter-rouge">\e[32m</code> or <code class="language-plaintext highlighter-rouge">\x1b[1;31m</code>. These are <a href="http://en.wikipedia.org/wiki/ANSI_escape_code">ANSI escape codes</a> used for defining a color. All ANSI escape sequences start with, well, <code class="language-plaintext highlighter-rouge">ESC</code>. There’re several ways of encoding an <code class="language-plaintext highlighter-rouge">ESC</code>:</p>
+
+<div class="width-full flex justify-center">
+    <table class="table-auto my-5">
+        <tbody>
+            <tr>
+                <td class="font-semibold py-3">Shell</td>
+                <td class="pl-5"><code>\e</code></td>
+            </tr>
+            <tr>
+                <td class="font-semibold py-3">ASCII Hex</td>
+                <td class="pl-5"><code>\0x1B</code></td>
+            </tr>
+            <tr>
+                <td class="font-semibold py-3">ASCII Oct</td>
+                <td class="pl-5"><code>\033</code></td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<p>So <code class="language-plaintext highlighter-rouge">\x1b[31;4m</code>, <code class="language-plaintext highlighter-rouge">\e[31;4m</code> and <code class="language-plaintext highlighter-rouge">\033[31;4m</code> are different ways to write the same sequence. Let’s look at the structure of this sequence.</p>
+
+<div class="w-full flex justify-center py-5">
+    <svg xmlns="http://www.w3.org/2000/svg" width="350px" height="200px">
+      <rect fill="white" stroke-width="2" />
+      <text font-family="Verdana" font-size="14" y="40">
+        <tspan fill="#4ECDC4" dx="75">Part of the CSI</tspan>
+        <tspan fill="#FF6B6B" dx="40">Finishing symbol</tspan>
+      </text>
+      <polyline stroke="#4ECDC4" fill="none" stroke-width="3" points="105,60 105,50 135,50 135,60" />
+      <polyline stroke="#FF6B6B" fill="none" stroke-width="3" points="245,60 245,50 290,50 290,60" />
+      <text font-family="Verdana" font-size="45" y="100">
+        <tspan fill="#556270">\x1b</tspan>
+        <tspan fill="#4ECDC4" dx="-10">[</tspan>
+        <tspan fill="#C7F464" dx="-10">31;4</tspan>
+        <tspan fill="#FF6B6B" dx="-10">m</tspan>
+      </text>
+      <polyline stroke="#556270" fill="none" stroke-width="3" points="2,110 2,120 105,120 105,110" />
+      <polyline stroke="#C7F464" fill="none" stroke-width="3" points="135,110 135,120 245,120 245,110" />
+      <text font-family="Verdana" font-size="14" y="140">
+        <tspan fill="#556270" dx="5">ESC character</tspan>
+        <tspan fill="#556270" dx="-100" dy="20">in Hex ASCII</tspan>
+        <tspan fill="#C7F464" dx="45" dy="-20">Color codes</tspan>
+      </text>
+    </svg>
+</div>
+
+<p><code class="language-plaintext highlighter-rouge">\x1b[</code> is a <strong>Control Sequence Introducer</strong> that consists of hexadecimal ASCII <code class="language-plaintext highlighter-rouge">ESC</code> character code and a <code class="language-plaintext highlighter-rouge">[</code>.</p>
+
+<p><code class="language-plaintext highlighter-rouge">31;4</code> is a list of instructions separated by <code class="language-plaintext highlighter-rouge">;</code>. Usually this list is formatted as follows:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">[</span>&lt;PREFIX&gt;]<span class="p">;</span><span class="o">[</span>&lt;COLOR&gt;]<span class="p">;</span><span class="o">[</span>&lt;TEXT DECORATION&gt;]
+</code></pre></div></div>
+
+<p>For example <code class="language-plaintext highlighter-rouge">31;4</code> means “no prefix, color - red, underline”. <code class="language-plaintext highlighter-rouge">&lt;PREFIX&gt;</code> is used for 256 color mode. More on color modes later.</p>
+
+<p>Finally <code class="language-plaintext highlighter-rouge">m</code> indicates the end of control sequence so terminal would know not to interpret text after <code class="language-plaintext highlighter-rouge">m</code> as a color code.</p>
+
+<p>The following command should print “hello” in red underscore text:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">&gt;</span> <span class="nb">echo</span> <span class="s2">"</span><span class="se">\x</span><span class="s2">1b[31;4mHello</span><span class="se">\x</span><span class="s2">1b[0m"</span>
+</code></pre></div></div>
+
+<p><code class="language-plaintext highlighter-rouge">\x1b[0m</code> means “reset all attributes”.</p>
+
+<h3 id="color-codes">Color codes</h3>
+
+<p>Back in the old days terminals were different. Some of them could display only 16 colors and some of them went as far as 256. Now you probably work with a terminal emulator that runs on a machine that could display <a href="http://en.wikipedia.org/wiki/List_of_monochrome_and_RGB_palettes#24-bit_RGB">more than 16 million colors</a>. But as terminal applications emulate older terminals, they usually support far less colors. For example a terminal app could be set up with 16 colors support or 256 colors support. The exact values of those colors depend on a terminal’s settings.</p>
+
+<p>To list all available colors in 16-color mode run:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">&gt;</span> <span class="k">for </span>code <span class="k">in</span> <span class="o">{</span>30..37<span class="o">}</span><span class="p">;</span> <span class="k">do</span> <span class="se">\</span>
+<span class="nb">echo</span> <span class="nt">-en</span> <span class="s2">"</span><span class="se">\e</span><span class="s2">[</span><span class="k">${</span><span class="nv">code</span><span class="k">}</span><span class="s2">m"</span><span class="s1">'\\e['</span><span class="s2">"</span><span class="nv">$code</span><span class="s2">"</span><span class="s1">'m'</span><span class="s2">"</span><span class="se">\e</span><span class="s2">[0m"</span><span class="p">;</span> <span class="se">\</span>
+<span class="nb">echo</span> <span class="nt">-en</span> <span class="s2">"  </span><span class="se">\e</span><span class="s2">[</span><span class="nv">$code</span><span class="s2">;1m"</span><span class="s1">'\\e['</span><span class="s2">"</span><span class="nv">$code</span><span class="s2">"</span><span class="s1">';1m'</span><span class="s2">"</span><span class="se">\e</span><span class="s2">[0m"</span><span class="p">;</span> <span class="se">\</span>
+<span class="nb">echo</span> <span class="nt">-en</span> <span class="s2">"  </span><span class="se">\e</span><span class="s2">[</span><span class="nv">$code</span><span class="s2">;3m"</span><span class="s1">'\\e['</span><span class="s2">"</span><span class="nv">$code</span><span class="s2">"</span><span class="s1">';3m'</span><span class="s2">"</span><span class="se">\e</span><span class="s2">[0m"</span><span class="p">;</span> <span class="se">\</span>
+<span class="nb">echo</span> <span class="nt">-en</span> <span class="s2">"  </span><span class="se">\e</span><span class="s2">[</span><span class="nv">$code</span><span class="s2">;4m"</span><span class="s1">'\\e['</span><span class="s2">"</span><span class="nv">$code</span><span class="s2">"</span><span class="s1">';4m'</span><span class="s2">"</span><span class="se">\e</span><span class="s2">[0m"</span><span class="p">;</span> <span class="se">\</span>
+<span class="nb">echo</span> <span class="nt">-e</span> <span class="s2">"  </span><span class="se">\e</span><span class="s2">[</span><span class="k">$((</span>code+60<span class="k">))</span><span class="s2">m"</span><span class="s1">'\\e['</span><span class="s2">"</span><span class="k">$((</span>code+60<span class="k">))</span><span class="s2">"</span><span class="s1">'m'</span><span class="s2">"</span><span class="se">\e</span><span class="s2">[0m"</span><span class="p">;</span> <span class="se">\</span>
+<span class="k">done</span>
+</code></pre></div></div>
+
+<p>You should see something like this:</p>
+
+<div class="w-full flex justify-center py-5">
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="300px">
+  <rect height="300" fill="#fff" width="100%" />
+  <text font-family="Verdana" font-size="20" y="50" x="20">
+    <tspan fill="black">\e[30m</tspan>
+    <tspan fill="red" dy="30" x="20">\e[31m</tspan>
+    <tspan fill="green" dy="30" x="20">\e[32m</tspan>
+    <tspan fill="yellow" dy="30" x="20">\e[33m</tspan>
+    <tspan fill="blue" dy="30" x="20">\e[34m</tspan>
+    <tspan fill="magenta" dy="30" x="20">\e[35m</tspan>
+    <tspan fill="cyan" dy="30" x="20">\e[36m</tspan>
+    <tspan fill="white" dy="30" x="20">\e[37m</tspan>
+  </text>
+
+  <text font-family="Verdana" font-size="20" y="50" x="110">
+    <tspan fill="black" stroke="black" x="110">\e[30;1m</tspan>
+    <tspan fill="red" dy="30" x="110" stroke="red">\e[31;1m</tspan>
+    <tspan fill="green" dy="30" x="110" stroke="green">\e[32;1m</tspan>
+    <tspan fill="yellow" dy="30" x="110" stroke="yellow">\e[33;1m</tspan>
+    <tspan fill="blue" dy="30" x="110" stroke="blue">\e[34;1m</tspan>
+    <tspan fill="magenta" dy="30" x="110" stroke="magenta">\e[35;1m</tspan>
+    <tspan fill="cyan" dy="30" x="110" stroke="cyan">\e[36;1m</tspan>
+    <tspan fill="white" dy="30" x="110" stroke="white">\e[37;1m</tspan>
+  </text>
+
+  <rect x="215" y="30" height="30" width="110" fill="black" />
+  <rect x="215" y="60" height="30" width="110" fill="red" />
+  <rect x="215" y="90" height="30" width="110" fill="green" />
+  <rect x="215" y="120" height="30" width="110" fill="yellow" />
+  <rect x="215" y="150" height="30" width="110" fill="blue" />
+  <rect x="215" y="180" height="30" width="110" fill="magenta" />
+  <rect x="215" y="210" height="30" width="110" fill="cyan" />
+  <rect x="215" y="240" height="30" width="110" fill="white" />
+  <text font-family="Verdana" font-size="20" y="50" x="220" fill="#222">
+    <tspan>\e[30;3m</tspan>
+    <tspan dy="30" x="220">\e[31;3m</tspan>
+    <tspan dy="30" x="220">\e[32;3m</tspan>
+    <tspan dy="30" x="220">\e[33;3m</tspan>
+    <tspan dy="30" x="220">\e[34;3m</tspan>
+    <tspan dy="30" x="220">\e[35;3m</tspan>
+    <tspan dy="30" x="220">\e[36;3m</tspan>
+    <tspan dy="30" x="220">\e[37;3m</tspan>
+  </text>
+
+  <text font-family="Verdana" font-size="20" y="50" x="335">
+    <tspan fill="black" style="text-decoration:underline;">\e[30;4m</tspan>
+    <tspan fill="red" dy="30" x="335" style="text-decoration:underline;">\e[31;4m</tspan>
+    <tspan fill="green" dy="30" x="335" style="text-decoration:underline;">\e[32;4m</tspan>
+    <tspan fill="yellow" dy="30" x="335" style="text-decoration:underline;">\e[33;4m</tspan>
+    <tspan fill="blue" dy="30" x="335" style="text-decoration:underline;">\e[34;4m</tspan>
+    <tspan fill="magenta" dy="30" x="335" style="text-decoration:underline;">\e[35;4m</tspan>
+    <tspan fill="cyan" dy="30" x="335" style="text-decoration:underline;">\e[36;4m</tspan>
+    <tspan fill="white" dy="30" x="335" style="text-decoration:underline;">\e[37;4m</tspan>
+  </text>
+
+  <text font-family="Verdana" font-size="20" y="50" x="445">
+    <tspan fill="7e7e7e">\e[30m</tspan>
+    <tspan fill="#ff7e7e" dy="30" x="445">\e[91m</tspan>
+    <tspan fill="#7eff43" dy="30" x="445">\e[92m</tspan>
+    <tspan fill="#ffff7e" dy="30" x="445">\e[93m</tspan>
+    <tspan fill="#7e7eff" dy="30" x="445">\e[94m</tspan>
+    <tspan fill="#ff7eff" dy="30" x="445">\e[95m</tspan>
+    <tspan fill="#7effff" dy="30" x="445">\e[96m</tspan>
+    <tspan fill="#eee" dy="30" x="445">\e[97m</tspan>
+  </text>
+</svg>
+</div>
+
+<p>Or, in fact, something completely different! You can set up red to look like blue but I wouldn’t recommend such a deception as it probably mess up some color themes in <code class="language-plaintext highlighter-rouge">bash</code>, <code class="language-plaintext highlighter-rouge">zsh</code> or anything else that runs in a terminal.</p>
+
+<p>As you can see from command’s output there are several sets of color codes:</p>
+
+<div class="width-full flex justify-center my-5">
+    <table class="table table-bordered">
+      <tr>
+        <td class="font-semibold py-3">Basic 8 colors</td>
+        <td class="pl-5">30..37</td>
+      </tr>
+      <tr>
+        <td class="font-semibold py-3">Basic "high contrast" colors</td>
+        <td class="pl-5">90..97</td>
+      </tr>
+      <tr>
+        <td class="font-semibold py-3">xterm-256 colors</td>
+        <td class="pl-5">0..255</td>
+      </tr>
+    </table>
+</div>
+
+<p>And a set of text decoration indicators that should be placed right after the color code:</p>
+
+<div class="width-full flex justify-center my-5">
+    <table class="table table-bordered">
+      <tr>
+        <td class="font-semibold py-3">Bold</td>
+        <td class="pl-5">1</td>
+      </tr>
+      <tr>
+        <td class="font-semibold py-3">Underscore</td>
+        <td class="pl-5">4</td>
+      </tr>
+      <tr>
+        <td class="font-semibold py-3">Background</td>
+        <td class="pl-5">3</td>
+      </tr>
+    </table>
+</div>
+
+<p>If color code is prefixed by <code class="language-plaintext highlighter-rouge">38;5</code> it is interpreted as one of 256 colors. E.g. <code class="language-plaintext highlighter-rouge">\e[38;5;91m</code> will color following text purple, while <code class="language-plaintext highlighter-rouge">\e[91m</code> will indicate bright red.</p>
+
+<p>There’re several 256 color palettes out there. For example, a couple of the popular ones are <a href="http://en.wikipedia.org/wiki/Web_colors#Web-safe_colors">Web safe colors</a> and <a href="http://en.wikipedia.org/wiki/X11_color_names">X11 colors</a>. And though they’re both include 256 colors, they’re two different palettes!</p>
+
+<p>To enable 256 colors support, you have to set up your terminal as <code class="language-plaintext highlighter-rouge">xterm-256color</code> (in <code class="language-plaintext highlighter-rouge">iTerm2</code> go to <strong>Preferences</strong> &gt; <strong>Profiles</strong> &gt; <strong>Terminal</strong> &gt; <strong>Report Terminal Type</strong> and put <code class="language-plaintext highlighter-rouge">xterm-256color</code> into the field). The set of colors you’ll get is <a href="http://en.wikipedia.org/wiki/File:Xterm_256color_chart.svg">xterm-256 pallete</a>. In some places, like Mac OSX default color picker, this palette is called “emacs”, though it doesn’t have anything to do with Emacs.</p>
+
+<p>To list all colors available in 256 color mode with their codes run</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">&gt;</span> <span class="k">for </span>code <span class="k">in</span> <span class="o">{</span>0..255<span class="o">}</span>
+    <span class="k">do </span><span class="nb">echo</span> <span class="nt">-e</span> <span class="s2">"</span><span class="se">\e</span><span class="s2">[38;5;</span><span class="k">${</span><span class="nv">code</span><span class="k">}</span><span class="s2">m"</span><span class="s1">'\\e[38;5;'</span><span class="s2">"</span><span class="nv">$code</span><span class="s2">"</span>m<span class="s2">"</span><span class="se">\e</span><span class="s2">[0m"</span>
+  <span class="k">done</span>
+</code></pre></div></div>
+
+<p><strong>Bonus</strong>: To list all colors available in <code class="language-plaintext highlighter-rouge">Emacs</code> run <code class="language-plaintext highlighter-rouge">M-x list-colors-display</code>.</p>
+
+</div>
+
+
+    </div>
+  </div>
+</body>

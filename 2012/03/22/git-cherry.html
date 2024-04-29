@@ -1,0 +1,111 @@
+<!DOCTYPE HTML>
+<head>
+  <meta http-equiv='Content-Type' content='text/html; charset=utf-8' />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/main.css" type="text/css" media="screen" />
+  <link rel="stylesheet" href="/css/syntax.css" type="text/css" media="screen" />
+<!--  <link rel="stylesheet" href="/css/pygments.css" type="text/css" media="screen" />-->
+
+  <!-- Google analytics -->
+  <script type="text/javascript">
+
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-30366699-2']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+
+  </script>
+
+  <title>jafrog</title>
+</head>
+
+<body>
+  <div class="mx-auto max-w-7xl sm:px-6 lg:px-8 bg-slate-50 font-plex">
+    <div class="mx-auto max-w-5xl sm:px-8 lg:px-24">
+      <div class="flex justify-between sm:py-6 md:py-12 border-b">
+    <div class="flex flex-col justify-start">
+        <h1 class="text-3xl font-semibold">
+            <a href="/">jafrog's dev blog</a>
+        </h1>
+        <div class="flex justify-start items-center mt-2`">
+            <a href="https://www.github.com/jafrog">
+                <img src="/assets/github.svg" alt="Github" class="w-6 h-6" />
+            </a>
+            <a href="https://www.linkedin.com/in/irinabednova/">
+                <img src="/assets/linkedin.svg" alt="Linkedin" class="w-6 h-6">
+            </a>
+        </div>
+    </div>
+    <div class="right-0 flex items-center">
+        <img src="/assets/avatar.jpg" alt="jafrog" class="h-16 w-16 rounded-full" />
+    </div>
+</div>
+
+      <script src="/assets/snap.svg.js"></script>
+<div class="pt-20">
+  <div class="flex items-center pb-2">
+    <img src="/assets/calendar.svg" alt="Time" class="w-4 h-4" />
+    <time class="pl-1 text-gray-500" datetime="2012-03-22 00:00:00 +0000">22 March 2012</time>
+  </div>
+  <div class="text-3xl pb-10 font-medium text-sky-500">Git Cherry</div>
+</div>
+<div class="pb-20">
+  <p>Sometimes overuse of git cherry-pick command leads to the situation, where actual difference between two branches is no longer the one you see in git <code class="language-plaintext highlighter-rouge">log branch1..branch2</code>.</p>
+
+<p>For example, if repo has two branches: <code class="language-plaintext highlighter-rouge">master</code> and <code class="language-plaintext highlighter-rouge">experimental</code>. <code class="language-plaintext highlighter-rouge">Master</code>’s history looks like this:</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">~/example&gt; git checkout master
+~/example&gt; git log <span class="nt">--oneline</span>
+4c72a0a First commit
+24361e1 Initial commit</code></pre></figure>
+
+<p>And experimental’s:</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">~/example&gt; git checkout experimental
+~/example&gt; git log <span class="nt">--oneline</span>
+31e76c6 Second experimental commit
+160a97c First experimental commit
+4c72a0a First commit
+24361e1 Initial commit</code></pre></figure>
+
+<p>Now let’s cherry-pick one commit to the master branch:</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">~/example&gt; git checkout master
+~/example&gt; git cherry-pick 160a97c
+~/example&gt; git log <span class="nt">--oneline</span>
+f16b462 First experimental commit
+4c72a0a First commit
+24361e1 Initial commit</code></pre></figure>
+
+<p>Note that new commit has a different SHA-1 now, because <code class="language-plaintext highlighter-rouge">cherry-pick</code> “applies changes introduced by some existing commits”, not moves commit object itself. So now if we try to see what’s new in <code class="language-plaintext highlighter-rouge">experimental</code> branch compared to <code class="language-plaintext highlighter-rouge">master</code> brach using <code class="language-plaintext highlighter-rouge">git log</code>, we get this:</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">~/example&gt; git log master..experimental <span class="nt">--oneline</span> <span class="nt">--graph</span> <span class="nt">--pretty</span><span class="o">=</span>format:<span class="s1">'%H - %s'</span>
+<span class="k">*</span> 31e76c6893f01283bae005c9af1a25a7c63b1423 - Second experimental commit
+<span class="k">*</span> 160a97cd0b1a32381e34ea5f72f5f39cacb77e14 - First experimental commit</code></pre></figure>
+
+<p>There’s no difference between “First experimental commit” and “Second experimental commit” though changes presented by one of them is already in the <code class="language-plaintext highlighter-rouge">master</code>. But <code class="language-plaintext highlighter-rouge">git cherry</code> command can show that difference.</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">~/example&gt; git cherry master experimental <span class="nt">-v</span>
+- 160a97cd0b1a32381e34ea5f72f5f39cacb77e14 First experimental commit
++ 31e76c6893f01283bae005c9af1a25a7c63b1423 Second experimental commit</code></pre></figure>
+
+<p><em>+</em> means that “upstream” (in this case <code class="language-plaintext highlighter-rouge">master</code> branch) lacks both commit object and it’s changes. <em>-</em> tells us that changes of this commit are represented by a different commit object in “upstream”.</p>
+
+<p>Now a little more about command syntax:</p>
+
+<p>The first argument (optional, defaults to the branch’s remote) is <em>upstream</em>. There’s a lot of confusion about this term, so I would recommend <a href="http://stackoverflow.com/questions/2739376/definition-of-downstream-and-upstream">this question on StackOverflow</a>. In this case upstream is simply a branch in which you want to know what commits from another branch (head) are present. The second argument “head” is also optional and defaults to <a href="http://stackoverflow.com/questions/2304087/what-is-git-head-exactly">current HEAD</a>.</p>
+
+</div>
+
+
+    </div>
+  </div>
+</body>

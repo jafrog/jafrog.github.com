@@ -1,0 +1,1378 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+ 
+  <title>Jafrog's dev blog</title>
+  <link href="https://jafrog.com" rel="self"/>
+  <link href="https://jafrog.com"/>
+  <updated>2024-04-29T13:01:44+00:00</updated>
+  <id>https://jafrog.com</id>
+  <author>
+    <name>Irina Bednova</name>
+    <email>irina.bednova@gmail.com</email>
+  </author>
+
+  
+  <entry>
+    <title>Analyze Segment data with Elastic Search</title>
+    <link href="https://jafrog.com/2016/12/02/elasticsearch-segment.html"/>
+    <updated>2016-12-02T00:00:00+00:00</updated>
+    <id>https://jafrog.com/2016/12/02/elasticsearch-segment</id>
+    <content type="html">&lt;p&gt;Data is good. Searchable data about users’ behavior is even better. Add backups and you have a legacy to be remembered by.&lt;/p&gt;
+
+&lt;p&gt;At Makers Academy we use &lt;a href=&quot;https://segment.com&quot;&gt;Segment&lt;/a&gt; - a tool that collects all of your tracking in one place. And we track a lot of things. Some of these things are in the domain of Google Analytics, but some of the data is left largely unseen. Let’s try to fix it.&lt;/p&gt;
+
+&lt;h1 id=&quot;the-setup&quot;&gt;The setup&lt;/h1&gt;
+
+&lt;p&gt;We’re going to build a pipeline that looks like this:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/posts/es-setup/diagram.png&quot; alt=&quot;Diagram&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;① We enable a webhook in Segment to forward all data to the designated API endpoint.&lt;/p&gt;
+
+&lt;p&gt;② The webhook points to a &lt;a href=&quot;https://aws.amazon.com/documentation/apigateway&quot;&gt;Amazon API gateway&lt;/a&gt; endpoint.&lt;/p&gt;
+
+&lt;p&gt;③ API gateway serves as proxy for &lt;a href=&quot;https://aws.amazon.com/documentation/kinesis/&quot;&gt;Amazon Kinesis Firehose&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;④ Firehose dumps data to &lt;a href=&quot;https://aws.amazon.com/elasticsearch-service/&quot;&gt;Amazon Elasticsearch&lt;/a&gt; and to &lt;a href=&quot;https://aws.amazon.com/s3/&quot;&gt;Amazon S3&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;⑤ Amazon Elasticsearch service already has Kibana plugin installed so you can start visualizing data immediately.&lt;/p&gt;
+
+&lt;h1 id=&quot;amazon-es&quot;&gt;Amazon ES&lt;/h1&gt;
+
+&lt;p&gt;First we’re going to create an Elasticsearch domain.&lt;/p&gt;
+
+&lt;p&gt;Go to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Services -&amp;gt; Elasticsearch Service&lt;/code&gt; in your AWS console and click &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Create new domain&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;Pick a domain name. I used &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;kibana-2&lt;/code&gt; because the rest of the business refers to this setup as “Kibana” and because it wasn’t my first attempt to set up “Kibana”.&lt;/p&gt;
+
+&lt;p&gt;When you get to the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Set up access policy&lt;/code&gt; tab select &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Allow open access to the domain&lt;/code&gt;. It’s the easiest way to get started and test your pipeline.&lt;/p&gt;
+
+&lt;p&gt;And that’s pretty much it for the Elasticsearch + Kibana setup. When you create a domain you will see a link to the Kibana interface. It’s not going to show anything yet, but it’s nice to know that it’s there.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/posts/es-setup/es_setup.png&quot; alt=&quot;ES setup&quot; /&gt;&lt;/p&gt;
+
+&lt;h1 id=&quot;kinesis-firehose&quot;&gt;Kinesis Firehose&lt;/h1&gt;
+
+&lt;p&gt;We will create a delivery stream in Kinesis Firehose to deliver data to the Elasticsearch domain. Go to the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Kinesis&lt;/code&gt; service -&amp;gt; &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Firehose&lt;/code&gt; and click &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Create delivery stream&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/posts/es-setup/firehose_1.png&quot; alt=&quot;Firehose Step 1&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;It’s up to you to decide whether you want to back up all of the data to S3 or only failed documents. One advantage of backing up everything is that your analytics data will be there forever even if you decide to disable Elasticsearch at some point.&lt;/p&gt;
+
+&lt;p&gt;To allow your delivery stream access to Elasticsearch you need to create a AIM &lt;em&gt;role&lt;/em&gt; (or pick an existing one) and attach a &lt;em&gt;policy&lt;/em&gt; to it.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/posts/es-setup/firehose_2.png&quot; alt=&quot;Firehose Step 2&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;When you choose to create or update a role in the dropdown a new screen will open. Type in a role name, keep &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Create a new Role policy&lt;/code&gt; and click &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Allow&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/posts/es-setup/firehose_aim.png&quot; alt=&quot;Firehose AIM&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Finish the setup and you’re ready to test the Firehose to ES integration with the built-in test tool.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/posts/es-setup/firehose_test.png&quot; alt=&quot;Firehose Test&quot; /&gt;&lt;/p&gt;
+
+&lt;h1 id=&quot;api-gateway&quot;&gt;API Gateway&lt;/h1&gt;
+
+&lt;p&gt;Segment has a built-in integration with Amazon Kinesis. Unfortunately it only integrates with Kinesis Streams. We don’t need Kinesis Streams, we need to pipe data to Kinesis Firehose.&lt;/p&gt;
+
+&lt;p&gt;Amazon API Gateway can act as proxy to many Amazon services. It’s handy because you don’t have to worry about authentication and access rights (almost). So we’re going to set up an API endpoint to be a proxy for Kinesis Firehose.&lt;/p&gt;
+
+&lt;h2 id=&quot;aim-role&quot;&gt;AIM Role&lt;/h2&gt;
+
+&lt;p&gt;First we’ll need to create a &lt;a href=&quot;https://aws.amazon.com/iam/&quot;&gt;AIM&lt;/a&gt; Role to allow API Gateway access to Firehose.&lt;/p&gt;
+
+&lt;p&gt;Go to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Services -&amp;gt; AIM -&amp;gt; Roles -&amp;gt; Create Role&lt;/code&gt; in the AWS console. Select &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Amazon API Gateway&lt;/code&gt; as the Role Type and finish creating the role.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/posts/es-setup/api_role_1.png&quot; alt=&quot;API Role 1&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Now go to the role page and click &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Attach Policy&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/posts/es-setup/api_role_2.png&quot; alt=&quot;API Role 2&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Start typing “Firehose” in the search input and select &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;AmazonKinesisFirehoseFullAccess&lt;/code&gt; policy.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/posts/es-setup/api_role_3.png&quot; alt=&quot;API Role 3&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;The new role should look similar to this:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/posts/es-setup/api_role_4.png&quot; alt=&quot;API Role 4&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Now on to setting up the API endpoint.&lt;/p&gt;
+
+&lt;h2 id=&quot;api-setup&quot;&gt;API Setup&lt;/h2&gt;
+
+&lt;p&gt;To do this go to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Services -&amp;gt; API Gateway -&amp;gt; Create API&lt;/code&gt; in the AWS console.&lt;/p&gt;
+
+&lt;p&gt;Our API is going to have just one &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;POST&lt;/code&gt; method for the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;/&lt;/code&gt; resource. So select &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Actions -&amp;gt; Create Method&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/posts/es-setup/create_method.png&quot; alt=&quot;Create Method&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Select method &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;POST&lt;/code&gt;. The config for the method should look something like this:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/posts/es-setup/method_config.png&quot; alt=&quot;Method config&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;When API Gateway passes the request through it needs to change the content type from &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;application/json&lt;/code&gt; to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;application/x-amz-json-1.1&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/posts/es-setup/content_type.png&quot; alt=&quot;Content Type&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Last but not least we need to set up JSON data mapping to specify what Firehose stream we want to send data to and in what format. You can set it up in the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Body Mapping Templates&lt;/code&gt; section.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/posts/es-setup/json_mapping.png&quot; alt=&quot;JSON Mapping&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;The code for mapping:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-javascript&quot; data-lang=&quot;javascript&quot;&gt;  &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;dl&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;DeliveryStreamName&lt;/span&gt;&lt;span class=&quot;dl&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;dl&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;Analytics-ES&lt;/span&gt;&lt;span class=&quot;dl&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// replace with the name of your Firehose stream&lt;/span&gt;
+    &lt;span class=&quot;dl&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;Record&lt;/span&gt;&lt;span class=&quot;dl&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+      &lt;span class=&quot;dl&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;Data&lt;/span&gt;&lt;span class=&quot;dl&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;dl&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;$util.base64Encode($input.json(&apos;$&apos;))&lt;/span&gt;&lt;span class=&quot;dl&quot;&gt;&quot;&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// take the whole JSON sent by Segment, encode it in Base64 and pass through&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Now we can test the API to make sure the data comes through to Firehose nicely.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/posts/es-setup/api_test_1.png&quot; alt=&quot;API Test&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Add Content-type &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;application/json&lt;/code&gt; and put some dummy JSON in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Request Body&lt;/code&gt;. The successful request should get &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;RecordId&lt;/code&gt; in response.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/posts/es-setup/api_test_2.png&quot; alt=&quot;API Test Result&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Deploy the API by selecting &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Actions -&amp;gt; Deploy API&lt;/code&gt; and you’re good to go!&lt;/p&gt;
+
+&lt;h1 id=&quot;segment-integration&quot;&gt;Segment integration&lt;/h1&gt;
+
+&lt;p&gt;The last step is to add a Segment integration. Find out your API URL on the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Stages&lt;/code&gt; page.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/posts/es-setup/api_url.png&quot; alt=&quot;API URL&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Login to Segment, go to the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Integrations -&amp;gt; Webhooks&lt;/code&gt; and add the URL you copied.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/posts/es-setup/segment_webhook.png&quot; alt=&quot;Segment Webhook&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;And you’re done! Now all of the Segment analytics will be available to see in the Kibana console.&lt;/p&gt;
+
+</content>
+  </entry>
+  
+  <entry>
+    <title>The happy state of web development</title>
+    <link href="https://jafrog.com/2016/01/15/happy-state-of-web-development.html"/>
+    <updated>2016-01-15T00:00:00+00:00</updated>
+    <id>https://jafrog.com/2016/01/15/happy-state-of-web-development</id>
+    <content type="html">&lt;p&gt;A couple of days ago I read &lt;a href=&quot;https://medium.com/@wob/the-sad-state-of-web-development-1603a861d29f#.jhf1kavwq&quot;&gt;this post&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://media.giphy.com/media/11uV3l0wNmMIr6/giphy.gif&quot; alt=&quot;Get off my lawn&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;While I love to rant about &lt;a href=&quot;http://blog.codinghorror.com/the-magpie-developer/&quot;&gt;magpie developers&lt;/a&gt; as much as the next girl I found myself in disagreement with both @wob and @codinghorror.&lt;/p&gt;
+
+&lt;h1 id=&quot;new-shiny-things&quot;&gt;New shiny things&lt;/h1&gt;
+
+&lt;p&gt;Yes, there’s a new JavaScript framework born every week and yes it becomes obsolete by the time the initial commit is pushed on Github. And yes it’s hard to keep up with the endless stream of everchanging tools and libraries. But let me ask you this - &lt;strong&gt;how else we can advance our tools&lt;/strong&gt;?&lt;/p&gt;
+
+&lt;p&gt;Here’s a picture of a giraffe’s &lt;a href=&quot;https://en.wikipedia.org/wiki/Recurrent_laryngeal_nerve&quot;&gt;laryngeal nerve&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;http://blog.eternalvigilance.me/wp-content/uploads/2013/04/giraffe-recurrent-laryngeal-nerve.png&quot; alt=&quot;Laryngeal nerve&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Dawkins made it famous by using it as an argument against intelligent design but we’re not going into this debate.&lt;/p&gt;
+
+&lt;p&gt;The reason this nerve takes a 5 metre detour for what should’ve been a 5cm trip is that &lt;strong&gt;evolution is not a straight road to the most effective solution&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;p&gt;It would be great if we could jump straight into the most time-efficient and easy-to-learn tool to build “credit card authorization […] and […] inventory reports to print” but unfortunately we can’t. Unfortunately it takes a lot of trial and error and shitty package managers and over-engineered processes to get there.&lt;/p&gt;
+
+&lt;h1 id=&quot;fighting-off-hipsters&quot;&gt;Fighting off hipsters&lt;/h1&gt;
+
+&lt;p&gt;The best thing about this is you don’t even have to do it yourself! There’s a community of overly-enthusiastic &lt;em&gt;magpie developers&lt;/em&gt; who will develop, adopt, burn themselves on and perfect those tools you can begrudgingly agree to use a couple of years later. All you have to do is shut down some junior’s enthusiasm every once in a while.&lt;/p&gt;
+
+&lt;p&gt;I’ve used Rails and Ruby in my everyday developer life for over 4 years now. And even though I have regular fits of anger and despair caused by those two I’m grateful to all the early adopters who made it possible for me not to touch PHP or Java to write web apps. And as a way to pay it forward I can promise I will keep trying to sneak things like &lt;a href=&quot;http://lotusrb.org&quot;&gt;Lotus&lt;/a&gt; and &lt;a href=&quot;http://elm-lang.org&quot;&gt;Elm&lt;/a&gt; into production against everyone’s best judgement.&lt;/p&gt;
+</content>
+  </entry>
+  
+  <entry>
+    <title>A taste of Prolog</title>
+    <link href="https://jafrog.com/2016/01/10/prolog.html"/>
+    <updated>2016-01-10T00:00:00+00:00</updated>
+    <id>https://jafrog.com/2016/01/10/prolog</id>
+    <content type="html">&lt;p&gt;I was browsing my overgrown to-do list in search for low-hanging fruits when I noticed a link to &lt;a href=&quot;https://www.youtube.com/watch?v=hEOVcLAPRG8&quot;&gt;this talk&lt;/a&gt; with a tag “Prolog” that has been sitting there for over a year.&lt;/p&gt;
+
+&lt;p&gt;It turned out to be an amazing talk by Aja Hammerly. It gives you a perfect first glance at Prolog and it inspired me to play with it a little bit myself.&lt;/p&gt;
+
+&lt;p&gt;The following is a transcript of me trying to get an idea of what it’s all about.&lt;/p&gt;
+
+&lt;h1 id=&quot;installing-prolog-on-mac&quot;&gt;Installing Prolog on Mac&lt;/h1&gt;
+
+&lt;p&gt;This one is pretty straightforward. I chose &lt;a href=&quot;http://www.swi-prolog.org&quot;&gt;SWI-Prolog&lt;/a&gt;. To install SWI-Prolog from brew run this:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;brew tap homebrew/x11
+brew &lt;span class=&quot;nb&quot;&gt;install &lt;/span&gt;swi-prolog&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Once installed you can launch Prolog REPL with &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;swipl&lt;/code&gt;. As with Haskell you probably want to run it from the directory where your code is. To load file &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;test&lt;/code&gt; run &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;[test].&lt;/code&gt; (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;.&lt;/code&gt; marks the end of expression).&lt;/p&gt;
+
+&lt;h1 id=&quot;playing-with-lists&quot;&gt;Playing with lists&lt;/h1&gt;
+
+&lt;p&gt;I chose list manipulation as my guinea pig following the steps of &lt;a href=&quot;http://learnyouahaskell.com&quot;&gt;Learn You a Haskell for Great Good&lt;/a&gt;. I believe that the way language works with lists is a good indicator of language’s philosophy in general, so here we go.&lt;/p&gt;
+
+&lt;p&gt;First and simplest - let’s get a first element of the list. In Haskell you would write it like this:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-haskell&quot; data-lang=&quot;haskell&quot;&gt;&lt;span class=&quot;n&quot;&gt;first&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;x&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;kr&quot;&gt;_&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;x&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Very similar in Prolog:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-prolog&quot; data-lang=&quot;prolog&quot;&gt;&lt;span class=&quot;ss&quot;&gt;first&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;El&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;El&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;_&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]).&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Few things can be observed from this function. Prolog’s variables start with capital letters. Prolog’s “functions” - &lt;strong&gt;facts&lt;/strong&gt; or &lt;strong&gt;predicates&lt;/strong&gt; - start with lower case letters. Prolog, as Haskell can pattern match &lt;em&gt;head&lt;/em&gt; and &lt;em&gt;tail&lt;/em&gt; of a list. And as in other languages underscore marks a placeholder. Note that in Prolog if predicate contains multiple underscores each one is a separate variable.&lt;/p&gt;
+
+&lt;h1 id=&quot;recursion&quot;&gt;Recursion&lt;/h1&gt;
+
+&lt;p&gt;In functional languages list manipulation naturally leads to recursion. So let’s see how would a predicate checking if something is a member of a list would look.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-prolog&quot; data-lang=&quot;prolog&quot;&gt;&lt;span class=&quot;ss&quot;&gt;member&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;H&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;H&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;_&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]).&lt;/span&gt;
+&lt;span class=&quot;ss&quot;&gt;member&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;X&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;_&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;T&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]):-&lt;/span&gt;
+    &lt;span class=&quot;ss&quot;&gt;member&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;X&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;T&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;It looks innocent enough but let’s see how we can use it.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-prolog&quot; data-lang=&quot;prolog&quot;&gt;&lt;span class=&quot;err&quot;&gt;$&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;swipl&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;?-&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;test&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;].&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;%% Loading a file where predicates are defined&lt;/span&gt;
+&lt;span class=&quot;ss&quot;&gt;true&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;?-&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;member&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;m&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;m&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;m&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;m&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]).&lt;/span&gt;
+&lt;span class=&quot;ss&quot;&gt;true&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;%% type . to finish&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;That’s what I would expect. However &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;member&lt;/code&gt; can be used to find &lt;em&gt;all&lt;/em&gt; members of the given list:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-prolog&quot; data-lang=&quot;prolog&quot;&gt;&lt;span class=&quot;o&quot;&gt;?-&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;member&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;X&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;m&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;m&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;m&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]).&lt;/span&gt;
+&lt;span class=&quot;nv&quot;&gt;X&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;1&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;&lt;span class=&quot;c1&quot;&gt;%% this is only one possible solution. Press &apos;n&apos; to output them all&lt;/span&gt;
+&lt;span class=&quot;nv&quot;&gt;X&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;2&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;nv&quot;&gt;X&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;3&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;ss&quot;&gt;false&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Moreover, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;member&lt;/code&gt; can be used to find all &lt;em&gt;lists&lt;/em&gt; that have given argument as an element:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-prolog&quot; data-lang=&quot;prolog&quot;&gt;&lt;span class=&quot;o&quot;&gt;?-&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;member&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;m&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;L&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;
+&lt;span class=&quot;nv&quot;&gt;L&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;m&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;_G282&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;%% pressing &apos;n&apos;&lt;/span&gt;
+&lt;span class=&quot;nv&quot;&gt;L&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;_G281&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;_G285&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;%% pressing &apos;n&apos; once more&lt;/span&gt;
+&lt;span class=&quot;nv&quot;&gt;L&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;_G281&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;_G284&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;_G288&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;c1&quot;&gt;%% OK, I get the idea, pressing &apos;.&apos; now&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;In this case that would be an infinite number of lists with &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;1&lt;/code&gt; in the first position, the second, etc.&lt;/p&gt;
+
+&lt;p&gt;Prolog can do this because of it’s way of pattern matching is different to what is used in Haskell or Erlang.&lt;/p&gt;
+
+&lt;h1 id=&quot;pattern-matching-in-prolog-vs-haskell&quot;&gt;Pattern matching in Prolog vs Haskell&lt;/h1&gt;
+
+&lt;p&gt;This &lt;a href=&quot;http://stackoverflow.com/questions/9780779/pattern-matching-prolog-vs-haskell&quot;&gt;question&lt;/a&gt; on Stack Overflow is where I got all my knowledge from.&lt;/p&gt;
+
+&lt;p&gt;In short - Prolog uses unification while Haskell uses one-way pattern matching. In practice it means that while in Haskell unbound variables can only occur on a left side of an expression, in Prolog they can be used on both sides.&lt;/p&gt;
+
+&lt;p&gt;Another important difference is pattern matching in Prolog tries to evaluate all possible solutions while in Haskell pattern matching stops when the match is found.&lt;/p&gt;
+
+&lt;p&gt;That’s why Prolog doesn’t stop after the first line of our definition of &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;member&lt;/code&gt;:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-prolog&quot; data-lang=&quot;prolog&quot;&gt;&lt;span class=&quot;ss&quot;&gt;member&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;H&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;H&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;_&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]).&lt;/span&gt;
+&lt;span class=&quot;ss&quot;&gt;member&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;X&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;_&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;T&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]):-&lt;/span&gt;
+    &lt;span class=&quot;ss&quot;&gt;member&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;X&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;T&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;But tries to evaluate every definition of the predicate.&lt;/p&gt;
+
+&lt;p&gt;I found that it introduces the whole new way of thinking about the problem. I spend several hours trying to think of the way to generate all possible pairs in the given list when it hit me:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-prolog&quot; data-lang=&quot;prolog&quot;&gt;&lt;span class=&quot;ss&quot;&gt;pairs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;X&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;Y&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;L&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):-&lt;/span&gt;
+    &lt;span class=&quot;ss&quot;&gt;member&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;X&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;L&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+    &lt;span class=&quot;ss&quot;&gt;member&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;Y&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;L&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+    &lt;span class=&quot;nv&quot;&gt;Y&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;@&amp;gt;&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;X&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;As simple as that. In her talk Aja Hammerly shows how one can use Prolog to model logic circuits or solve logic puzzles and it really shines when it comes to problems like these. If you can think of a good problem for logic programming leave a comment!&lt;/p&gt;
+</content>
+  </entry>
+  
+  <entry>
+    <title>The edge cases of array slicing in Ruby</title>
+    <link href="https://jafrog.com/2015/02/25/ruby-array-slicing.html"/>
+    <updated>2015-02-25T00:00:00+00:00</updated>
+    <id>https://jafrog.com/2015/02/25/ruby-array-slicing</id>
+    <content type="html">&lt;p&gt;Last Thursday at our monthly ScotRUG meetup we did &lt;a href=&quot;http://rubykoans.com&quot;&gt;Ruby Koans&lt;/a&gt;. To my surprise it was very educational, probably because of Ruby being so &lt;del&gt;inconsistent and unpredictable&lt;/del&gt; comprehensive and feature rich. &lt;a href=&quot;https://twitter.com/CeriShaw&quot;&gt;Ceri Shaw&lt;/a&gt; (who reads C code much better than I do) and I paired over some unexpected array slicing behaviour and found out how it’s wired under the hood.&lt;/p&gt;
+
+&lt;h2 id=&quot;array-slicing&quot;&gt;Array slicing&lt;/h2&gt;
+
+&lt;p&gt;We investigated the &lt;a href=&quot;http://ruby-doc.org//core-2.2.0/Array.html#method-i-slice&quot;&gt;slice&lt;/a&gt; method that takes two arguments: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;start&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;length&lt;/code&gt;.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;n&quot;&gt;ar&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;ar&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# =&amp;gt; [2,3]&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Now let’s take a look at edge cases. Namely at out of range slicing.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;n&quot;&gt;ar&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;ar&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;100&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# =&amp;gt; [3]&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;ar&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# =&amp;gt; []&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;ar&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# =&amp;gt; nil&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Wait, what? The last index of &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;ar&lt;/code&gt; is 2, so why &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;ar[3,1]&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;ar[4,1]&lt;/code&gt; return different results if they both are out of range?&lt;/p&gt;
+
+&lt;p&gt;The logic behind this, as &lt;a href=&quot;https://twitter.com/sarcainian&quot;&gt;James Bell&lt;/a&gt; put it, is that slices start &lt;em&gt;between the elements&lt;/em&gt;. For &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;ar[3,1]&lt;/code&gt; slice starts right before the 3rd element (or after 2nd element) and takes 1 element. Because there are no elements after the index 2 it return an empty array. And &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;ar[4,1]&lt;/code&gt; starts right after the 3rd element, which is out of range and therefore returns &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;nil&lt;/code&gt;.&lt;/p&gt;
+
+&lt;h2 id=&quot;under-the-hood&quot;&gt;Under the hood&lt;/h2&gt;
+
+&lt;p&gt;Let’s take a look on the implementation. Below is source code of the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;slice&lt;/code&gt; method.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-c&quot; data-lang=&quot;c&quot;&gt;&lt;span class=&quot;n&quot;&gt;VALUE&lt;/span&gt;
+&lt;span class=&quot;nf&quot;&gt;rb_ary_aref&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;argc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;VALUE&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;argv&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;VALUE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ary&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;VALUE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;arc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;kt&quot;&gt;long&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;beg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;argc&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;beg&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;NUM2LONG&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;argv&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]);&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;len&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;NUM2LONG&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;argv&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]);&lt;/span&gt;
+	&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;beg&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+	    &lt;span class=&quot;n&quot;&gt;beg&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;RARRAY_LEN&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ary&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+	&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+	&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;rb_ary_subseq&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ary&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;beg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;...&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;If 2 arguments (starting index and the length) were passed it calls &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;rb_ary_subseq&lt;/code&gt;:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-c&quot; data-lang=&quot;c&quot;&gt;&lt;span class=&quot;n&quot;&gt;VALUE&lt;/span&gt;
+&lt;span class=&quot;nf&quot;&gt;rb_ary_subseq&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;VALUE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ary&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;long&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;beg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;long&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;VALUE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;klass&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;kt&quot;&gt;long&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;alen&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;RARRAY_LEN&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ary&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;beg&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;alen&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Qnil&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;beg&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;||&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;len&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Qnil&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;alen&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;len&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;||&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;alen&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;beg&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;len&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;alen&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;beg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;klass&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;rb_obj_class&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ary&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;len&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ary_new&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;klass&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ary_make_partial&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ary&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;klass&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;beg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Let’s break down what is going on there:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;If starting index is larger than array length return &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;nil&lt;/code&gt;. This is the condition that executes for &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;ar[4,1]&lt;/code&gt; as the length of &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;ar = [1,2,3]&lt;/code&gt; is &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;3&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;4 &amp;gt; 3&lt;/code&gt;.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;If either starting index or length are less than 0 return &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;nil&lt;/code&gt;. The caller function &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;rb_ary_aref&lt;/code&gt; takes care of negative starting indexes transforming them to indexes “from the end” with &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;beg += RARRAY_LEN(ary);&lt;/code&gt;&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;If the length of requested slice is larger than the length of the array or if the last element of the requested slice falls out of range take only the elements from the starting index to the end of the array;&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Finally if the length of the requested slice is &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;0&lt;/code&gt; return an empty array. And from the previous line it’s clear that for &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;ar[3,1]&lt;/code&gt; when &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;ar = [1,2,3]&lt;/code&gt; &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;len&lt;/code&gt; would be equal to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;0&lt;/code&gt;.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;So here it is, the logic and the implementation of Ruby array slicing.&lt;/p&gt;
+</content>
+  </entry>
+  
+  <entry>
+    <title>The perils of Rails constant lookup</title>
+    <link href="https://jafrog.com/2015/01/26/rails-constant-lookup.html"/>
+    <updated>2015-01-26T00:00:00+00:00</updated>
+    <id>https://jafrog.com/2015/01/26/rails-constant-lookup</id>
+    <content type="html">&lt;p&gt;&lt;strong&gt;Update: As &lt;a href=&quot;https://twitter.com/yves_senn&quot;&gt;@yves_senn&lt;/a&gt; and &lt;a href=&quot;https://twitter.com/fxn&quot;&gt;@fxn&lt;/a&gt; pointed out there’s a &lt;a href=&quot;http://edgeguides.rubyonrails.org/autoloading_and_reloading_constants.html#autoloading-within-singleton-classes&quot;&gt;Rails Guide&lt;/a&gt; now on the subject of autloading and constants reloading. Kudos to &lt;a href=&quot;https://twitter.com/fxn&quot;&gt;@fxn&lt;/a&gt;!&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;It all started with one innocent refactoring. We had two classes defined in the same file. Say &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Foo&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Foo::Bar&lt;/code&gt;. Naturally, as &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Foo&lt;/code&gt; lives in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;app/models/foo.rb&lt;/code&gt; the place for &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Foo::Bar&lt;/code&gt; is to be &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;app/models/foo/bar.rb&lt;/code&gt;. As &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;app/models/&lt;/code&gt; is listed among &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;autoload_paths&lt;/code&gt; I thought nothing could go wrong. As soon as &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Bar&lt;/code&gt; is referenced from inside the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Foo&lt;/code&gt; its path will be resolved and it would be loaded from &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;app/models/foo/bar.rb&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;The change was tested and successfully deployed to production. The hit came from an unexpected side - Rake task using this code failed with &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Uninitialized constant Bar&lt;/code&gt;.&lt;/p&gt;
+
+&lt;h2 id=&quot;rails-eager-loading&quot;&gt;Rails eager loading&lt;/h2&gt;
+
+&lt;p&gt;The first question was “Why does it work in the UI but fails in the Rake task?” After some investigation I found out two facts:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Rails redefines &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;const_missing&lt;/code&gt; (more on that later);&lt;/li&gt;
+  &lt;li&gt;Rails &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;const_missing&lt;/code&gt; can’t locate its own ass let alone my poor &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Foo::Bar&lt;/code&gt; class.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Given that, the fact that the app still worked when accessed from the web interface could mean only one thing - resolving &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Foo::Bar&lt;/code&gt; never had to hit &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;const_missing&lt;/code&gt; in the first place. All thanks to &lt;strong&gt;eager loading&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;p&gt;Rails’s eager loading feature allows files (and constants defined in them) to be loaded on startup instead of loading “on demand” when a constant is first referenced. This means that when in production environment &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Foo::Bar&lt;/code&gt; constant is first encountered it’s already loaded and doesn’t need to be found with &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;const_missing&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;But if production Rake tasks run in the same production environment where eager loading is enabled then why it doesn’t work for them? For Rails 3.2 the reason could be found in &lt;a href=&quot;https://github.com/rails/rails/blob/3-2-stable/railties/lib/rails/application/finisher.rb#L50-L55&quot;&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;finisher.rb&lt;/code&gt; file&lt;/a&gt;:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;n&quot;&gt;initializer&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:eager_load!&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;config&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;cache_classes&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;defined?&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;vg&quot;&gt;$rails_rake_task&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;vg&quot;&gt;$rails_rake_task&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;no&quot;&gt;ActiveSupport&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;run_load_hooks&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;:before_eager_load&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;eager_load!&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Note the condition. Checking for &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;config.cache_classes&lt;/code&gt; is fair enough - it probably doesn’t make much sense to load everything on startup if you’re going to reload it on every change. But it also checks for the global variable &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;$rails_rake_task&lt;/code&gt; which if defined indicates that the code is run inside the Rake task!&lt;/p&gt;
+
+&lt;p&gt;Interestingly there are no such conditions in &lt;a href=&quot;https://github.com/rails/rails/blob/4-2-stable/railties/lib/rails/application/finisher.rb#L53-L58&quot;&gt;Rails 4.2&lt;/a&gt;. Instead you explicitly say whether or not to eager load classes with &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;config.eager_load&lt;/code&gt; option:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;n&quot;&gt;initializer&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:eager_load!&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;config&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;eager_load&lt;/span&gt;
+    &lt;span class=&quot;no&quot;&gt;ActiveSupport&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;run_load_hooks&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;:before_eager_load&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;config&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;eager_load_namespaces&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;each&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;:eager_load!&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;The solution I came up with was to require &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;bar.rb&lt;/code&gt; in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;foo.rb&lt;/code&gt; to make sure &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Foo::Bar&lt;/code&gt; is already loaded when it’s needed. I tested it in the development environment where eager loading was disabled and it seemed to work. Except it didn’t.&lt;/p&gt;
+
+&lt;p&gt;As soon as I changed anything at all in the app and reloaded the page I got same old &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Undefined constant Bar&lt;/code&gt; exception. After thinking about it for a while I realized that it happened because of the combination of two factors:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;When Rails reloads classes it removes all constants first;&lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;require&lt;/code&gt; in Ruby requires files only &lt;strong&gt;once&lt;/strong&gt;. If the file was already loaded it will not be loaded again.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;So when I changed code in the app Rails removed all constants, but &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;require&lt;/code&gt; on top of the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;foo.rb&lt;/code&gt; didn’t do anything because files had already been loaded. One way to solve this is to use &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;load&lt;/code&gt; in place of &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;require&lt;/code&gt; which will load a file every time the code is run. But I decided to get to the core of the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;const_missing&lt;/code&gt; issue instead. Why can’t it find &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Bar&lt;/code&gt; constant when it’s referenced from inside the scope it was defined in?&lt;/p&gt;
+
+&lt;h2 id=&quot;rails-const_missing&quot;&gt;Rails &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;const_missing&lt;/code&gt;&lt;/h2&gt;
+
+&lt;p&gt;First, read &lt;a href=&quot;http://urbanautomaton.com/blog/2013/08/27/rails-autoloading-hell/&quot;&gt;this brilliant piece&lt;/a&gt; on Ruby and Rails constant lookup and autoloading. It explains everything you should know about Rails autoload process.&lt;/p&gt;
+
+&lt;p&gt;Now let’s dig into &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;const_missing&lt;/code&gt; as it’s defined in &lt;a href=&quot;https://github.com/rails/rails/blob/3-2-stable/activesupport/lib/active_support/dependencies.rb&quot;&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;ActiveSupport::Dependencies&lt;/code&gt; module&lt;/a&gt;:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;const_missing&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;const_name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;nesting&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;kp&quot;&gt;nil&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;klass_name&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;presence&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;||&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;Object&quot;&lt;/span&gt;
+
+  &lt;span class=&quot;k&quot;&gt;unless&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;nesting&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;# We&apos;ll assume that the nesting of Foo::Bar is [&quot;Foo::Bar&quot;, &quot;Foo&quot;]&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;# even though it might not be, such as in the case of&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;# class Foo::Bar; Baz; end&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;nesting&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[]&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;klass_name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;to_s&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;scan&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;sr&quot;&gt;/::|$/&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;nesting&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;unshift&lt;/span&gt; &lt;span class=&quot;vg&quot;&gt;$`&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+  &lt;span class=&quot;c1&quot;&gt;# If there are multiple levels of nesting to search under, the top&lt;/span&gt;
+  &lt;span class=&quot;c1&quot;&gt;# level is the one we want to report as the lookup fail.&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;error&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;kp&quot;&gt;nil&lt;/span&gt;
+
+  &lt;span class=&quot;n&quot;&gt;nesting&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;each&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;namespace&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;begin&lt;/span&gt;
+      &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;Dependencies&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;load_missing_constant&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;Inflector&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;constantize&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;namespace&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;const_name&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;rescue&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;NoMethodError&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;then&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;raise&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;rescue&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;NameError&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;e&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;error&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;||=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;e&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+  &lt;span class=&quot;c1&quot;&gt;# Raise the first error for this set. If this const_missing came from an&lt;/span&gt;
+  &lt;span class=&quot;c1&quot;&gt;# earlier const_missing, this will result in the real error bubbling&lt;/span&gt;
+  &lt;span class=&quot;c1&quot;&gt;# all the way up&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;raise&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;error&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;The method implementation is quite a bit different in Rails 4, but the process is essentially the same:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Get parent scope name.&lt;/li&gt;
+  &lt;li&gt;Get nesting from the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;nesting&lt;/code&gt; parameter. I’m not sure how exactly this parameter is passed, if ever. So it’s safe to assume that &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;nesting&lt;/code&gt; is &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;nil&lt;/code&gt;. Note that &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;nesting&lt;/code&gt; is also a special method in pry which makes it a little tricky to inspect.&lt;/li&gt;
+  &lt;li&gt;If &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;nesting&lt;/code&gt; is &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;nil&lt;/code&gt; try to derive nesting from the parent scope name - &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;klass_name&lt;/code&gt;.&lt;/li&gt;
+  &lt;li&gt;Construct constant “full name” from the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;const_name&lt;/code&gt; and nesting.&lt;/li&gt;
+  &lt;li&gt;Try to find missing constant based on the constructed name.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;Now here’s the rough example of how the troublesome code looks:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;c1&quot;&gt;# app/models/foo.rb&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;module&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;Foo&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;self&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;foo&lt;/span&gt;
+        &lt;span class=&quot;no&quot;&gt;Bar&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;new&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;bar&lt;/span&gt;
+      &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;# app/models/foo/bar.rb&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;module&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;Foo&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;Bar&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;bar&lt;/span&gt;
+      &lt;span class=&quot;s2&quot;&gt;&quot;bar&quot;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;What puzzled me is that &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Bar&lt;/code&gt; is referenced from inside the scope where it’s defined, why &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;const_missing&lt;/code&gt; can’t detect that? And then it hit me. Look closer at &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;const_missing&lt;/code&gt; first line: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;klass_name = name.presence || &quot;Object&quot;&lt;/code&gt;. What is &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;name&lt;/code&gt;?&lt;/p&gt;
+
+&lt;p&gt;Turns out &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;name&lt;/code&gt; is a built in Ruby method that&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Returns the name of the module... Returns nil for anonymous modules.
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;And if we inspect &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;self&lt;/code&gt; at the point where &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;name&lt;/code&gt; is called it will show us &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;#&amp;lt;Class:Foo::Bar&amp;gt;&lt;/code&gt; which is a class object because &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Baz&lt;/code&gt; is referenced from inside &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;class &amp;lt;&amp;lt; self&lt;/code&gt; scope! And as class object is an anonymous module its name is &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;nil&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;const_missing&lt;/code&gt; is trying to find top-level &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Baz&lt;/code&gt; constant instead of &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Foo::Bar&lt;/code&gt;. If instead of &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;class &amp;lt;&amp;lt; self&lt;/code&gt; the method was defined as &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;self.baz&lt;/code&gt; the problem wouldn’t occur.&lt;/p&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+
+&lt;p&gt;I don’t know if there’s a catchall solution to this kind of problems. Explicitly loading all dependencies seems to be to tedious for large Rails projects. Referencing constants by the full name all the time breaks encapsulation. IMO The best way to avoid constant lookup issues in all your environments is to&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;understand how constant lookup works and what code at each point of your program;&lt;/li&gt;
+  &lt;li&gt;keep an eye on scopes where constant is referenced.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;I hope this will save you some hair I had to pull off while trying to debug this issue.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;TL;DR: Look out for classes referenced from inside &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;class &amp;lt;&amp;lt; self&lt;/code&gt;.&lt;/strong&gt;&lt;/p&gt;
+</content>
+  </entry>
+  
+  <entry>
+    <title>How To Mock Constants In Ruby Tests</title>
+    <link href="https://jafrog.com/2014/11/22/how-to-mock-constants-in-ruby-tests.html"/>
+    <updated>2014-11-22T00:00:00+00:00</updated>
+    <id>https://jafrog.com/2014/11/22/how-to-mock-constants-in-ruby-tests</id>
+    <content type="html">&lt;p&gt;Annoyingly large amount of time was spent by me trying to figure out a way to mock constants / classes in tests for our Rails project. The trick is not only in defining the correct constant in the correct namespace, but also in removing it afterwards so the rest of the tests in the suite still use the original one.&lt;/p&gt;
+
+&lt;p&gt;So here’s trivial but nevertheless useful snippet to do just that.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;n&quot;&gt;describe&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;ModuleName&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;ClassName&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;unless&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;ModuleName&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;const_defined?&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;:ClassToMock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;before&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
+      &lt;span class=&quot;no&quot;&gt;ModuleName&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;send&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;:const_set&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;ClassToMock&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;Struct&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;new&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;:foo&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:bar&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+    &lt;span class=&quot;n&quot;&gt;after&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
+      &lt;span class=&quot;no&quot;&gt;ModuleName&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;send&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;:remove_const&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;ClassToMock&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+  &lt;span class=&quot;o&quot;&gt;...&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Here I used &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;MiniTest&lt;/code&gt;, but the same could be done with &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;RSpec&lt;/code&gt; or &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Test::Unit&lt;/code&gt;’s &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;setup&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;teardown&lt;/code&gt; methods.&lt;/p&gt;
+
+&lt;p&gt;What exactly is it useful for? If the test runs in isolation it contains everything it needs because all dependencies for &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;ModuleName::ClassName&lt;/code&gt; you don’t care about are mocked. Very useful when developing a feature as you don’t have to load any extra code and the test runs very fast.&lt;/p&gt;
+
+&lt;p&gt;As soon as you’re done and the test becomes a part of the suite, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;ClassToMock&lt;/code&gt; should no longer be mocked as the whole app’s code is loaded anyway when running all tests together. So when &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;ClassToMock&lt;/code&gt; is defined &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;before&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;after&lt;/code&gt; blocks are omitted. Nice and tidy.&lt;/p&gt;
+</content>
+  </entry>
+  
+  <entry>
+    <title>Testing A Shift Register</title>
+    <link href="https://jafrog.com/2014/08/30/testing-a-shift-register.html"/>
+    <updated>2014-08-30T00:00:00+00:00</updated>
+    <id>https://jafrog.com/2014/08/30/testing-a-shift-register</id>
+    <content type="html">&lt;h2 id=&quot;motivation&quot;&gt;Motivation&lt;/h2&gt;
+
+&lt;p&gt;This winter I had my first Hack Days at FreeAgent. During the Hack Days everybody at FreeAgent teams up for a couple of days and builds something fun and (preferably) useful. That’s when “Machine that goes ‘Ping!’” was born.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/posts/wiring-a-shift-register/ping1.JPG&quot; alt=&quot;Machine that goes &apos;Ping!&apos;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;With an Arduino Uno board, some Sugru, bicycle bell, a few LEDs, servo motor and a RabbitMQ subscription to production logs it was able to ring a bell and flash some ligths every time FreeAgent got a new subscriber. The machine was a grand success.&lt;/p&gt;
+
+&lt;iframe src=&quot;//instagram.com/p/k_3egwjwAP/embed/&quot; width=&quot;500&quot; height=&quot;550&quot; frameborder=&quot;0&quot; scrolling=&quot;no&quot; allowtransparency=&quot;true&quot; style=&quot;display: block; margin: 50px auto;&quot;&gt;&amp;#160;&lt;/iframe&gt;
+
+&lt;p&gt;This little project inspired me to do something more challenging. I wanted to further develop the idea of the subsribers counter and I knew that the new version of the machine should not only make a sound when a user subsribes or unsibscribes but also display the total number of subscribers. As an inspiration I used &lt;a href=&quot;http://www.instructables.com/id/Nixie-Tube-Geiger-Counter/&quot;&gt;this&lt;/a&gt; Geiger counter project I found a while ago. I hadn’t completely figured out the design yet, but decided to use &lt;a href=&quot;http://en.wikipedia.org/wiki/Nixie_tube&quot;&gt;Nixie tubes&lt;/a&gt; anyway.&lt;/p&gt;
+
+&lt;h2 id=&quot;the-project&quot;&gt;The project&lt;/h2&gt;
+
+&lt;p&gt;Here’s the impression of what the finished product might look like produced with my rudimentary drawing skills:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/posts/wiring-a-shift-register/impression.jpg&quot; alt=&quot;Project sketch&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;On the inside the architecture is pretty simple: Raspberry Pi gets the total number of subscribers and an event of subscription somewhere online. It sends the number to the Nixie tubes for display and a signal to the speaker on a subscription event.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/posts/wiring-a-shift-register/PrincipalScheme.png&quot; alt=&quot;High level overview&quot; style=&quot;max-width: 800px;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;The first part of this scheme I’m going to dive into is the Nixie tubes part.&lt;/p&gt;
+
+&lt;h2 id=&quot;nixie-tubes&quot;&gt;Nixie tubes&lt;/h2&gt;
+
+&lt;p&gt;A Nixie tube is a vacuum tube with a bunch of electrodes inside. When current goes through the tube electrodes glow due to the effect called &lt;a href=&quot;http://en.wikipedia.org/wiki/Glow_discharge&quot;&gt;glow discharge&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;If you put two electrodes - cathode (-) and anode (+) - in a tube filled with gas, and apply enough voltage, electrons start to “break” from cathode and fly to anode ionizing gas inside the tube and causing a glow.&lt;/p&gt;
+
+&lt;p&gt;Nixie tubes have multiple cathodes, shaped like digits from 0 to 9, and one anode. If you connect this common anode to a high-voltage power source and connect one of the digit cathodes to the ground you’ll see the digit glowing with bright light.&lt;/p&gt;
+
+&lt;p&gt;Nixie tubes come in different varieties. I’ve got the model &lt;a href=&quot;http://www.kosbo.com/info/IN4_layout.pdf&quot;&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;IN-4&lt;/code&gt;&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;IN-4&lt;/code&gt; tubes have 14 pins: 10 digits-cathodes, an anode (pin 4) and 3 more pins the meaning of which is unknown to me.&lt;/p&gt;
+
+&lt;div class=&quot;center-block&quot; style=&quot;margin-bottom: 50px; text-align: center;&quot;&gt;
+  &lt;img alt=&quot;IN-4 Nixie tube&quot; src=&quot;/assets/posts/wiring-a-shift-register/in4.png&quot; style=&quot;margin-bottom: 5px;&quot; /&gt;
+  &lt;span style=&quot;font-size: 12px;&quot;&gt;Image courtesy of http://www.tube-tester.com&lt;/span&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Because Nixie tubes operate at such high voltage (180V) and because it’s not very handy to look up a pin number you have to “activate” every time you want to display a digit a &lt;strong&gt;driver&lt;/strong&gt; should be placed between a controlling device and a tube.&lt;/p&gt;
+
+&lt;p&gt;In this project I used &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;K155ID&lt;/code&gt; chip - a high-voltage BCD-to-decimal decoder. More on this in the next post. For now let’s just assume that for each tube we have 4 input pins instead of 10 and if we send a binary coded number from 0 to 9 to these pins the number would show up on a Nixie tube attached to the driver.&lt;/p&gt;
+
+&lt;h2 id=&quot;shift-registers&quot;&gt;Shift registers&lt;/h2&gt;
+
+&lt;p&gt;To show a 6 digit number, we have to send signals to 6 * 4 = 24 input pins. That’s way too many inputs for a simple device, let’s try to reduce the number.&lt;/p&gt;
+
+&lt;p&gt;One way to do this is to align all 24 pins, connect them to a single wire and connect that wire to a Raspberry Pi. Then we can send one signal at a time for each pin on this wire, i.e. form a succession of “messages” like “1 to pin #23”, “0 to pin #22” etc. This process is called &lt;a href=&quot;http://en.wikipedia.org/wiki/Multiplexing&quot;&gt;multiplexing&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;Of course we will need a device that will decide which pin is to receive what signal. For that we can use &lt;a href=&quot;http://en.wikipedia.org/wiki/Shift_register&quot;&gt;shift registers&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;Serial-in, parallel-out shift register is an electronic device that receives a serial input (a sequence of “1” and “0” send one after another), stores it and transforms it to the parallel output.&lt;/p&gt;
+
+&lt;div class=&quot;center-block&quot; style=&quot;margin-bottom: 50px; text-align: center;&quot;&gt;
+  &lt;img alt=&quot;Shift Register&quot; src=&quot;/assets/posts/wiring-a-shift-register/ShiftRegComponent.gif&quot; style=&quot;margin-bottom: 5px;&quot; /&gt;
+  &lt;span style=&quot;font-size: 12px;&quot;&gt;Image courtesy of www.circuitsathome.com&lt;/span&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Shift registers have two clock inputs: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;SHCP&lt;/code&gt; or &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;SCK&lt;/code&gt; (Shift Register Clock) and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;STCP&lt;/code&gt; or &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;RCK&lt;/code&gt; (Storage Register Clock). Every time signal changes from 0 to 1 on &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;SHCP&lt;/code&gt; input all data stored in shift register “shifted” one bit to the right. When &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;STCP&lt;/code&gt; input is triggered, the data stored in shift the register gets sent to the outputs.&lt;/p&gt;
+
+&lt;script type=&quot;text/javascript&quot;&gt;
+ document.addEventListener(&quot;DOMContentLoaded&quot;, function(event) {
+   var svg = Snap(&quot;svg#shift_reg&quot;),
+   marker = svg.path(&quot;M 0 0 L 10 5 L 0 10 z&quot;).marker(0,0,3,3,1,5).attr({&quot;viewBox&quot;: &quot;0 0 10 10&quot;}),
+   shcp = svg.text(40, 140, &quot;SHCP&quot;).attr({&quot;font-size&quot;: &quot;28px&quot;, opacity: 0}),
+   stcp = svg.text(40, 180, &quot;STCP&quot;).attr({&quot;font-size&quot;: &quot;28px&quot;, opacity: 0}),
+   input_arrow = svg.line(150, 80, 180, 80).attr({&quot;marker-end&quot;: marker,
+                                                  &quot;stroke-width&quot;: 3}),
+   x = 190,
+   output_rects = svg.g().attr({fill: &quot;white&quot;, &quot;stroke-width&quot;: 3}),
+   output_rects_labels = svg.g(),
+   input_signals = [1,0,0,1,0,0,1,0],
+   input_string = input_signals.join(&quot;&quot;),
+   input_string_el = svg.text(35, 90, input_string),
+   input_texts = svg.g(),
+   output_lines = svg.g(),
+   outputs = svg.g().append(input_texts).append(output_lines);
+
+   input_signals.reverse();
+   for (var i=0; i&lt;8; i++) {
+     output_rects.add(svg.rect(x, 60, 40, 40));
+     output_rects_labels.add(svg.text(x+5, 130, &quot;Q&quot;+i));
+     output_lines.add(svg.line(x+17, 60, x+17, 50).attr({&quot;marker-end&quot;: marker,
+                                                         &quot;stroke-width&quot;: 3}));
+     x += 40;
+     input_texts.add(svg.text(130, 90, String(input_signals[i])).attr({opacity: &quot;0&quot;}));
+   }
+
+   output_rects.add(svg.rect(x, 60, 40, 40));
+   output_rects_labels.add(svg.text(x+12, 130, &quot;S&quot;));
+
+   function blink_text(text, i) {
+     opacity = i % 2
+     text.attr({opacity: opacity});
+   }
+
+   x = 200;
+   function run_animation(tick, digits_moved, finished) {
+     blink_text(shcp, tick);
+     if (digits_moved == 8) { blink_text(stcp, tick); }
+     var finished_on_next = false;
+     // Move input every 2 is until all of them moved
+     if (tick % 2 != 0) {
+       if (digits_moved &lt;= 7) {
+         input_string_el.attr({text: input_string.substring(0, 7 - digits_moved), x: 35 + digits_moved * 15});
+         for (var j=0; j&lt;=digits_moved; j++) {
+           input_texts[j].attr({opacity: 1});
+           input_texts[j].attr({x: x + 40 * digits_moved - 40 * j});
+         }
+       } else {
+         outputs.animate({transform: &quot;t0 -40&quot;}, 300, mina.easein);
+
+         finished_on_next = true;
+       }
+       digits_moved++;
+     }
+
+     if (finished) {
+       digits_moved = -1;
+       tick = -1;
+       finished_on_next = false;
+       stcp.attr({opacity: 0});
+       outputs.transform(&quot;t0 0&quot;);
+       for (var i=0; i&lt;8; i++) {
+         input_texts[i].attr({x:200, opacity: 0});
+       }
+     }
+
+     setTimeout(run_animation, 500, tick+1, digits_moved, finished_on_next);
+   }
+
+   run_animation(0, 0, false);
+ });
+&lt;/script&gt;
+
+&lt;svg xmlns=&quot;http://www.w3.org/2000/svg&quot; id=&quot;shift_reg&quot; width=&quot;600&quot; height=&quot;200&quot; class=&quot;center-block&quot; stroke=&quot;black&quot; style=&quot;font-family: Monaco;
+     font-size: 24px;&quot;&gt;
+&lt;/svg&gt;
+
+&lt;p&gt;Shift registers can be stacked together, each later one using &lt;strong&gt;serial output&lt;/strong&gt; of the previous one as a &lt;strong&gt;serial input&lt;/strong&gt;. This way the array of shift registers can be used as one big register, allowing to store and convert larger numbers.&lt;/p&gt;
+
+&lt;script type=&quot;text/javascript&quot;&gt;
+ document.addEventListener(&quot;DOMContentLoaded&quot;, function(event) {
+   var svg = Snap(&quot;#two_shift_regs&quot;),
+   marker = svg.path(&quot;M 0 0 L 10 5 L 0 10 z&quot;).marker(0,0,3,3,1,5).attr({&quot;viewBox&quot;: &quot;0 0 10 10&quot;}),
+   x = 0,
+   shift_reg1 = svg.g(),
+   input = svg.text(200, 90, &quot;1&quot;).attr({opacity: 0}),
+   shcp = svg.text(40, 180, &quot;SHCP&quot;).attr({&quot;font-size&quot;: &quot;28px&quot;, opacity: 0});
+
+   function blink_text(text, i) {
+     opacity = i % 2
+     text.attr({opacity: opacity});
+   }
+
+   svg.text(x, 90, &quot;...&quot;);
+   x += 50;
+
+   for (var i=6; i&lt;9; i++) {
+     shift_reg1.add(svg.rect(x, 60, 40, 40).attr({fill: &quot;white&quot;, &quot;stroke-width&quot;: 3}));
+     var text = &quot;Q&quot;+i, offset = 5;
+     if (i == 8) { text = &quot;S&quot;; offset = 12; }
+     shift_reg1.add(svg.text(x+offset, 130, text));
+     x += 40;
+   }
+
+   svg.line(x, 80, x+30, 80).attr({&quot;marker-end&quot;: marker, &quot;stroke-width&quot;: 3});
+   shift_reg1.clone().transform(&quot;t160 0&quot;);
+   svg.text(x+160, 90, &quot;...&quot;)
+
+   x = 60;
+   function run_animation(tick, digits_moved, finished) {
+     blink_text(shcp, tick);
+
+     var finished_on_next = false;
+     // Move input every 2 is until all of them moved
+     if (digits_moved == 3) { input.animate({transform: &quot;t80 0&quot;}, 300) }
+     if (tick % 2 != 0) {
+       input.attr({x: x + 40 * digits_moved, opacity: 1});
+       if (digits_moved == 4) { finished_on_next = true; }
+
+       digits_moved++;
+     }
+
+     if (finished) {
+       digits_moved = 0;
+       tick = -1;
+       finished_on_next = false;
+       input.attr({x: x, opacity: 0}).transform(&quot;t0 0&quot;);
+     }
+
+     setTimeout(run_animation, 500, tick+1, digits_moved, finished_on_next);
+   }
+
+   run_animation(0, 0, false);
+ });
+&lt;/script&gt;
+
+&lt;svg xmlns=&quot;http://www.w3.org/2000/svg&quot; id=&quot;two_shift_regs&quot; width=&quot;400&quot; height=&quot;200&quot; class=&quot;center-block&quot; stroke=&quot;black&quot; style=&quot;font-family: Monaco;
+     font-size: 24px;&quot;&gt;
+&lt;/svg&gt;
+
+&lt;p&gt;As &lt;a href=&quot;http://www.nxp.com/documents/data_sheet/74HC_HCT595.pdf&quot;&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;74HC595&lt;/code&gt; shift registers&lt;/a&gt; have 8 outputs we can connect two Nixie tube drivers to each of them.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/posts/wiring-a-shift-register/scheme.png&quot; alt=&quot;Overall schematic&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Three boards like this connected one to another can drive 6 Nixie tubes. Elements &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;JP2&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;JP3&lt;/code&gt; are sockets containing five wires common to all boards: power (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;VCC&lt;/code&gt;), ground (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;GND&lt;/code&gt;), &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;SHCP&lt;/code&gt; (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;CLK&lt;/code&gt;), &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;STCP&lt;/code&gt; (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;LATCH&lt;/code&gt;) and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;RESET&lt;/code&gt; (an input signal used to clear a shift register) and serial input and output.&lt;/p&gt;
+
+&lt;p&gt;Serial output of the first shift register (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;QH*&lt;/code&gt;) becomes a serial input of the second one while the serial input of the first register (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;SER&lt;/code&gt;) is connected to a Raspberry Pi.&lt;/p&gt;
+
+&lt;h2 id=&quot;testing-a-shift-register&quot;&gt;Testing a shift register&lt;/h2&gt;
+
+&lt;p&gt;To test a shift register on a series of simple inputs we can use an Arduino Uno. We need to plug three inputs of the shift register to Arduino: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;SHCP&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;STCP&lt;/code&gt; clocks and serial input &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;DS&lt;/code&gt;. To monitor the state, we connect 8 LEDs to the outputs.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/posts/wiring-a-shift-register/ShiftRegSketch.png&quot; alt=&quot;Shift Register Arduino&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;The first test is to send a single &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;1&lt;/code&gt; to the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;DS&lt;/code&gt; input and “shift” it from the first output pin to the last, blinking the LEDs as the number shifts.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-c&quot; data-lang=&quot;c&quot;&gt;&lt;span class=&quot;cm&quot;&gt;/*
+  Testing Shift Register 74HC595N
+  Shifting 1 from Q0 to Q7 and over again
+ */&lt;/span&gt;
+
+&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;shcp&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;7&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;  &lt;span class=&quot;c1&quot;&gt;// Connect shift register clock input to pin 7&lt;/span&gt;
+&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;stcp&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;12&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// Connect storage register clock input to pin 12&lt;/span&gt;
+&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ds&lt;/span&gt;   &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;  &lt;span class=&quot;c1&quot;&gt;// Connect serial data input to pin 8&lt;/span&gt;
+
+&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;shcp_count&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// A counter for the shift register clock&lt;/span&gt;
+&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ds_state&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;   &lt;span class=&quot;c1&quot;&gt;// Equals to 1 if the Serial Input received 1&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;// the setup routine runs once when you press reset:&lt;/span&gt;
+&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;setup&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;c1&quot;&gt;// initialize the digital pin as an output.&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;pinMode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;shcp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;OUTPUT&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;pinMode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stcp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;OUTPUT&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;pinMode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ds&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;OUTPUT&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;// the loop routine runs over and over again forever:&lt;/span&gt;
+&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;loop&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;digitalWrite&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;shcp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;digitalRead&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;shcp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// Tick the shift register clock&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;shcp_count&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+  &lt;span class=&quot;c1&quot;&gt;// Set all variables to the initial state&lt;/span&gt;
+  &lt;span class=&quot;c1&quot;&gt;// after the sequence is finished&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;shcp_count&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;20&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;shcp_count&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;ds_state&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+  &lt;span class=&quot;c1&quot;&gt;// Let the Shift Register Clock tick once (LOW -&amp;gt; HIGH, HIGH -&amp;gt; LOW)&lt;/span&gt;
+  &lt;span class=&quot;c1&quot;&gt;// before writing to the serial input;&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;shcp_count&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ds_state&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;digitalWrite&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ds&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;HIGH&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;ds_state&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;digitalWrite&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ds&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;LOW&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+  &lt;span class=&quot;c1&quot;&gt;// Tick Storage Register Clock if Serial Input received data&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ds_state&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;shcp_count&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;digitalWrite&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stcp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;digitalRead&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stcp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;delay&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;500&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;After uploading this program to the Arduino board you should see 8 LEDs flashing one after another, then the whole sequence repeating.&lt;/p&gt;
+
+&lt;p&gt;The second sketch features how to write a two-digit &lt;a href=&quot;http://en.wikipedia.org/wiki/Binary-coded_decimal&quot;&gt;Binary Coded Decimal (BCD)&lt;/a&gt; to the 8 output pins. The first digit to the first 4 pins and last digit to the last 4 pins. The number in this example is 99. Which is admittedly not a very good example as the number is a palindrome in both decimal and binary bases.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-c&quot; data-lang=&quot;c&quot;&gt;&lt;span class=&quot;cm&quot;&gt;/*
+  Testing Shift Register 74HC595N
+  Writing two numbers to first 4 outputs and second 4 outputs
+ */&lt;/span&gt;
+
+&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;shcp&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;7&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;  &lt;span class=&quot;c1&quot;&gt;// Shift register clock input&lt;/span&gt;
+&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;stcp&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;12&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// Storage register clock input&lt;/span&gt;
+&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ds&lt;/span&gt;   &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;  &lt;span class=&quot;c1&quot;&gt;// Serial data input&lt;/span&gt;
+
+&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;number1&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;9&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// Write number 9 to the first 4 outputs&lt;/span&gt;
+&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;number2&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;9&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// And number 9 to the second 4 outputs&lt;/span&gt;
+&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;done&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;// the setup routine runs once when you press reset:&lt;/span&gt;
+&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;setup&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;c1&quot;&gt;// initialize the digital pin as an output.&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;pinMode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;shcp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;OUTPUT&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;pinMode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stcp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;OUTPUT&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;pinMode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ds&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;OUTPUT&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;// the loop routine runs over and over again forever:&lt;/span&gt;
+&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;loop&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;digitalWrite&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stcp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;done&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;// At each iteration of this loop the shift register clock ticks once&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;// shifting &quot;focus&quot; from one of the 8 outputs to another&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;7&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;=&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;--&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;digitalWrite&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;shcp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;digitalWrite&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ds&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+      &lt;span class=&quot;c1&quot;&gt;// Run a bitwise AND on the binary representation of the current output number&lt;/span&gt;
+      &lt;span class=&quot;c1&quot;&gt;// and the number we want to write to the outputs.&lt;/span&gt;
+      &lt;span class=&quot;c1&quot;&gt;// Output numbers are in range from 1 to for as we treat first 4 and second 4 separately.&lt;/span&gt;
+      &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;number1&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;||&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;number2&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)))&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;digitalWrite&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ds&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+      &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;digitalWrite&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ds&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+      &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+      &lt;span class=&quot;n&quot;&gt;digitalWrite&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;shcp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;delay&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;100&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;done&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+    &lt;span class=&quot;n&quot;&gt;digitalWrite&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stcp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;delay&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1000&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Here’s the picture where active LEDs form the binary number &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;10011001&lt;/code&gt; - &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;99&lt;/code&gt; in BCD form.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/posts/wiring-a-shift-register/ShiftRegBreadboard.JPG&quot; alt=&quot;Wired Shift Register&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Arduino website has a great &lt;a href=&quot;http://arduino.cc/en/tutorial/ShiftOut&quot;&gt;tutorial&lt;/a&gt; on using a shift register with Arduino.&lt;/p&gt;
+
+&lt;h2 id=&quot;coming-next&quot;&gt;Coming next&lt;/h2&gt;
+
+&lt;p&gt;That’s it to the shift register! Another chip I used in the project is &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;K155ID1&lt;/code&gt; Nixie tubes driver. In the next post we’ll try to use it to transform an input BCD number to a corresponding pin number on a Nixie tube.&lt;/p&gt;
+</content>
+  </entry>
+  
+  <entry>
+    <title>Colors In Terminal</title>
+    <link href="https://jafrog.com/2013/11/23/colors-in-terminal.html"/>
+    <updated>2013-11-23T00:00:00+00:00</updated>
+    <id>https://jafrog.com/2013/11/23/colors-in-terminal</id>
+    <content type="html">&lt;p&gt;If you use terminal on a daily basis I bet you played with some color settings at least once. Colorizing &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;ls&lt;/code&gt; output, shell prompt, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;git&lt;/code&gt; logs - those are very common tasks. And it’s not surprising as color helps us parse information faster, pay attention to important parts and generally makes things prettier. Everybody loves pretty things, especially the ones you have to look at every day.&lt;/p&gt;
+
+&lt;p&gt;This post is an attempt to gather in one place and structure things I know about colors in terminal.&lt;/p&gt;
+
+&lt;h3 id=&quot;escape-sequences&quot;&gt;Escape sequences&lt;/h3&gt;
+
+&lt;p&gt;You’ve probably seen things like &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\e[32m&lt;/code&gt; or &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\x1b[1;31m&lt;/code&gt;. These are &lt;a href=&quot;http://en.wikipedia.org/wiki/ANSI_escape_code&quot;&gt;ANSI escape codes&lt;/a&gt; used for defining a color. All ANSI escape sequences start with, well, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;ESC&lt;/code&gt;. There’re several ways of encoding an &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;ESC&lt;/code&gt;:&lt;/p&gt;
+
+&lt;div class=&quot;width-full flex justify-center&quot;&gt;
+    &lt;table class=&quot;table-auto my-5&quot;&gt;
+        &lt;tbody&gt;
+            &lt;tr&gt;
+                &lt;td class=&quot;font-semibold py-3&quot;&gt;Shell&lt;/td&gt;
+                &lt;td class=&quot;pl-5&quot;&gt;&lt;code&gt;\e&lt;/code&gt;&lt;/td&gt;
+            &lt;/tr&gt;
+            &lt;tr&gt;
+                &lt;td class=&quot;font-semibold py-3&quot;&gt;ASCII Hex&lt;/td&gt;
+                &lt;td class=&quot;pl-5&quot;&gt;&lt;code&gt;\0x1B&lt;/code&gt;&lt;/td&gt;
+            &lt;/tr&gt;
+            &lt;tr&gt;
+                &lt;td class=&quot;font-semibold py-3&quot;&gt;ASCII Oct&lt;/td&gt;
+                &lt;td class=&quot;pl-5&quot;&gt;&lt;code&gt;\033&lt;/code&gt;&lt;/td&gt;
+            &lt;/tr&gt;
+        &lt;/tbody&gt;
+    &lt;/table&gt;
+&lt;/div&gt;
+
+&lt;p&gt;So &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\x1b[31;4m&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\e[31;4m&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\033[31;4m&lt;/code&gt; are different ways to write the same sequence. Let’s look at the structure of this sequence.&lt;/p&gt;
+
+&lt;div class=&quot;w-full flex justify-center py-5&quot;&gt;
+    &lt;svg xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;350px&quot; height=&quot;200px&quot;&gt;
+      &lt;rect fill=&quot;white&quot; stroke-width=&quot;2&quot; /&gt;
+      &lt;text font-family=&quot;Verdana&quot; font-size=&quot;14&quot; y=&quot;40&quot;&gt;
+        &lt;tspan fill=&quot;#4ECDC4&quot; dx=&quot;75&quot;&gt;Part of the CSI&lt;/tspan&gt;
+        &lt;tspan fill=&quot;#FF6B6B&quot; dx=&quot;40&quot;&gt;Finishing symbol&lt;/tspan&gt;
+      &lt;/text&gt;
+      &lt;polyline stroke=&quot;#4ECDC4&quot; fill=&quot;none&quot; stroke-width=&quot;3&quot; points=&quot;105,60 105,50 135,50 135,60&quot; /&gt;
+      &lt;polyline stroke=&quot;#FF6B6B&quot; fill=&quot;none&quot; stroke-width=&quot;3&quot; points=&quot;245,60 245,50 290,50 290,60&quot; /&gt;
+      &lt;text font-family=&quot;Verdana&quot; font-size=&quot;45&quot; y=&quot;100&quot;&gt;
+        &lt;tspan fill=&quot;#556270&quot;&gt;\x1b&lt;/tspan&gt;
+        &lt;tspan fill=&quot;#4ECDC4&quot; dx=&quot;-10&quot;&gt;[&lt;/tspan&gt;
+        &lt;tspan fill=&quot;#C7F464&quot; dx=&quot;-10&quot;&gt;31;4&lt;/tspan&gt;
+        &lt;tspan fill=&quot;#FF6B6B&quot; dx=&quot;-10&quot;&gt;m&lt;/tspan&gt;
+      &lt;/text&gt;
+      &lt;polyline stroke=&quot;#556270&quot; fill=&quot;none&quot; stroke-width=&quot;3&quot; points=&quot;2,110 2,120 105,120 105,110&quot; /&gt;
+      &lt;polyline stroke=&quot;#C7F464&quot; fill=&quot;none&quot; stroke-width=&quot;3&quot; points=&quot;135,110 135,120 245,120 245,110&quot; /&gt;
+      &lt;text font-family=&quot;Verdana&quot; font-size=&quot;14&quot; y=&quot;140&quot;&gt;
+        &lt;tspan fill=&quot;#556270&quot; dx=&quot;5&quot;&gt;ESC character&lt;/tspan&gt;
+        &lt;tspan fill=&quot;#556270&quot; dx=&quot;-100&quot; dy=&quot;20&quot;&gt;in Hex ASCII&lt;/tspan&gt;
+        &lt;tspan fill=&quot;#C7F464&quot; dx=&quot;45&quot; dy=&quot;-20&quot;&gt;Color codes&lt;/tspan&gt;
+      &lt;/text&gt;
+    &lt;/svg&gt;
+&lt;/div&gt;
+
+&lt;p&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\x1b[&lt;/code&gt; is a &lt;strong&gt;Control Sequence Introducer&lt;/strong&gt; that consists of hexadecimal ASCII &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;ESC&lt;/code&gt; character code and a &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;[&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;31;4&lt;/code&gt; is a list of instructions separated by &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;;&lt;/code&gt;. Usually this list is formatted as follows:&lt;/p&gt;
+
+&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&amp;lt;PREFIX&amp;gt;]&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&amp;lt;COLOR&amp;gt;]&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&amp;lt;TEXT DECORATION&amp;gt;]
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;For example &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;31;4&lt;/code&gt; means “no prefix, color - red, underline”. &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;&amp;lt;PREFIX&amp;gt;&lt;/code&gt; is used for 256 color mode. More on color modes later.&lt;/p&gt;
+
+&lt;p&gt;Finally &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;m&lt;/code&gt; indicates the end of control sequence so terminal would know not to interpret text after &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;m&lt;/code&gt; as a color code.&lt;/p&gt;
+
+&lt;p&gt;The following command should print “hello” in red underscore text:&lt;/p&gt;
+
+&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;echo&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\x&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;1b[31;4mHello&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\x&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;1b[0m&quot;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\x1b[0m&lt;/code&gt; means “reset all attributes”.&lt;/p&gt;
+
+&lt;h3 id=&quot;color-codes&quot;&gt;Color codes&lt;/h3&gt;
+
+&lt;p&gt;Back in the old days terminals were different. Some of them could display only 16 colors and some of them went as far as 256. Now you probably work with a terminal emulator that runs on a machine that could display &lt;a href=&quot;http://en.wikipedia.org/wiki/List_of_monochrome_and_RGB_palettes#24-bit_RGB&quot;&gt;more than 16 million colors&lt;/a&gt;. But as terminal applications emulate older terminals, they usually support far less colors. For example a terminal app could be set up with 16 colors support or 256 colors support. The exact values of those colors depend on a terminal’s settings.&lt;/p&gt;
+
+&lt;p&gt;To list all available colors in 16-color mode run:&lt;/p&gt;
+
+&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;for &lt;/span&gt;code &lt;span class=&quot;k&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;30..37&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt; &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+&lt;span class=&quot;nb&quot;&gt;echo&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-en&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\e&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;${&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;code&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;m&quot;&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&apos;\\e[&apos;&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$code&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&apos;m&apos;&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\e&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;[0m&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+&lt;span class=&quot;nb&quot;&gt;echo&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-en&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;  &lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\e&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$code&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;;1m&quot;&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&apos;\\e[&apos;&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$code&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&apos;;1m&apos;&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\e&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;[0m&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+&lt;span class=&quot;nb&quot;&gt;echo&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-en&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;  &lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\e&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$code&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;;3m&quot;&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&apos;\\e[&apos;&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$code&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&apos;;3m&apos;&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\e&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;[0m&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+&lt;span class=&quot;nb&quot;&gt;echo&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-en&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;  &lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\e&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$code&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;;4m&quot;&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&apos;\\e[&apos;&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$code&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&apos;;4m&apos;&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\e&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;[0m&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+&lt;span class=&quot;nb&quot;&gt;echo&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-e&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;  &lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\e&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;$((&lt;/span&gt;code+60&lt;span class=&quot;k&quot;&gt;))&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;m&quot;&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&apos;\\e[&apos;&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;$((&lt;/span&gt;code+60&lt;span class=&quot;k&quot;&gt;))&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&apos;m&apos;&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\e&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;[0m&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;done&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;You should see something like this:&lt;/p&gt;
+
+&lt;div class=&quot;w-full flex justify-center py-5&quot;&gt;
+&lt;svg xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;100%&quot; height=&quot;300px&quot;&gt;
+  &lt;rect height=&quot;300&quot; fill=&quot;#fff&quot; width=&quot;100%&quot; /&gt;
+  &lt;text font-family=&quot;Verdana&quot; font-size=&quot;20&quot; y=&quot;50&quot; x=&quot;20&quot;&gt;
+    &lt;tspan fill=&quot;black&quot;&gt;\e[30m&lt;/tspan&gt;
+    &lt;tspan fill=&quot;red&quot; dy=&quot;30&quot; x=&quot;20&quot;&gt;\e[31m&lt;/tspan&gt;
+    &lt;tspan fill=&quot;green&quot; dy=&quot;30&quot; x=&quot;20&quot;&gt;\e[32m&lt;/tspan&gt;
+    &lt;tspan fill=&quot;yellow&quot; dy=&quot;30&quot; x=&quot;20&quot;&gt;\e[33m&lt;/tspan&gt;
+    &lt;tspan fill=&quot;blue&quot; dy=&quot;30&quot; x=&quot;20&quot;&gt;\e[34m&lt;/tspan&gt;
+    &lt;tspan fill=&quot;magenta&quot; dy=&quot;30&quot; x=&quot;20&quot;&gt;\e[35m&lt;/tspan&gt;
+    &lt;tspan fill=&quot;cyan&quot; dy=&quot;30&quot; x=&quot;20&quot;&gt;\e[36m&lt;/tspan&gt;
+    &lt;tspan fill=&quot;white&quot; dy=&quot;30&quot; x=&quot;20&quot;&gt;\e[37m&lt;/tspan&gt;
+  &lt;/text&gt;
+
+  &lt;text font-family=&quot;Verdana&quot; font-size=&quot;20&quot; y=&quot;50&quot; x=&quot;110&quot;&gt;
+    &lt;tspan fill=&quot;black&quot; stroke=&quot;black&quot; x=&quot;110&quot;&gt;\e[30;1m&lt;/tspan&gt;
+    &lt;tspan fill=&quot;red&quot; dy=&quot;30&quot; x=&quot;110&quot; stroke=&quot;red&quot;&gt;\e[31;1m&lt;/tspan&gt;
+    &lt;tspan fill=&quot;green&quot; dy=&quot;30&quot; x=&quot;110&quot; stroke=&quot;green&quot;&gt;\e[32;1m&lt;/tspan&gt;
+    &lt;tspan fill=&quot;yellow&quot; dy=&quot;30&quot; x=&quot;110&quot; stroke=&quot;yellow&quot;&gt;\e[33;1m&lt;/tspan&gt;
+    &lt;tspan fill=&quot;blue&quot; dy=&quot;30&quot; x=&quot;110&quot; stroke=&quot;blue&quot;&gt;\e[34;1m&lt;/tspan&gt;
+    &lt;tspan fill=&quot;magenta&quot; dy=&quot;30&quot; x=&quot;110&quot; stroke=&quot;magenta&quot;&gt;\e[35;1m&lt;/tspan&gt;
+    &lt;tspan fill=&quot;cyan&quot; dy=&quot;30&quot; x=&quot;110&quot; stroke=&quot;cyan&quot;&gt;\e[36;1m&lt;/tspan&gt;
+    &lt;tspan fill=&quot;white&quot; dy=&quot;30&quot; x=&quot;110&quot; stroke=&quot;white&quot;&gt;\e[37;1m&lt;/tspan&gt;
+  &lt;/text&gt;
+
+  &lt;rect x=&quot;215&quot; y=&quot;30&quot; height=&quot;30&quot; width=&quot;110&quot; fill=&quot;black&quot; /&gt;
+  &lt;rect x=&quot;215&quot; y=&quot;60&quot; height=&quot;30&quot; width=&quot;110&quot; fill=&quot;red&quot; /&gt;
+  &lt;rect x=&quot;215&quot; y=&quot;90&quot; height=&quot;30&quot; width=&quot;110&quot; fill=&quot;green&quot; /&gt;
+  &lt;rect x=&quot;215&quot; y=&quot;120&quot; height=&quot;30&quot; width=&quot;110&quot; fill=&quot;yellow&quot; /&gt;
+  &lt;rect x=&quot;215&quot; y=&quot;150&quot; height=&quot;30&quot; width=&quot;110&quot; fill=&quot;blue&quot; /&gt;
+  &lt;rect x=&quot;215&quot; y=&quot;180&quot; height=&quot;30&quot; width=&quot;110&quot; fill=&quot;magenta&quot; /&gt;
+  &lt;rect x=&quot;215&quot; y=&quot;210&quot; height=&quot;30&quot; width=&quot;110&quot; fill=&quot;cyan&quot; /&gt;
+  &lt;rect x=&quot;215&quot; y=&quot;240&quot; height=&quot;30&quot; width=&quot;110&quot; fill=&quot;white&quot; /&gt;
+  &lt;text font-family=&quot;Verdana&quot; font-size=&quot;20&quot; y=&quot;50&quot; x=&quot;220&quot; fill=&quot;#222&quot;&gt;
+    &lt;tspan&gt;\e[30;3m&lt;/tspan&gt;
+    &lt;tspan dy=&quot;30&quot; x=&quot;220&quot;&gt;\e[31;3m&lt;/tspan&gt;
+    &lt;tspan dy=&quot;30&quot; x=&quot;220&quot;&gt;\e[32;3m&lt;/tspan&gt;
+    &lt;tspan dy=&quot;30&quot; x=&quot;220&quot;&gt;\e[33;3m&lt;/tspan&gt;
+    &lt;tspan dy=&quot;30&quot; x=&quot;220&quot;&gt;\e[34;3m&lt;/tspan&gt;
+    &lt;tspan dy=&quot;30&quot; x=&quot;220&quot;&gt;\e[35;3m&lt;/tspan&gt;
+    &lt;tspan dy=&quot;30&quot; x=&quot;220&quot;&gt;\e[36;3m&lt;/tspan&gt;
+    &lt;tspan dy=&quot;30&quot; x=&quot;220&quot;&gt;\e[37;3m&lt;/tspan&gt;
+  &lt;/text&gt;
+
+  &lt;text font-family=&quot;Verdana&quot; font-size=&quot;20&quot; y=&quot;50&quot; x=&quot;335&quot;&gt;
+    &lt;tspan fill=&quot;black&quot; style=&quot;text-decoration:underline;&quot;&gt;\e[30;4m&lt;/tspan&gt;
+    &lt;tspan fill=&quot;red&quot; dy=&quot;30&quot; x=&quot;335&quot; style=&quot;text-decoration:underline;&quot;&gt;\e[31;4m&lt;/tspan&gt;
+    &lt;tspan fill=&quot;green&quot; dy=&quot;30&quot; x=&quot;335&quot; style=&quot;text-decoration:underline;&quot;&gt;\e[32;4m&lt;/tspan&gt;
+    &lt;tspan fill=&quot;yellow&quot; dy=&quot;30&quot; x=&quot;335&quot; style=&quot;text-decoration:underline;&quot;&gt;\e[33;4m&lt;/tspan&gt;
+    &lt;tspan fill=&quot;blue&quot; dy=&quot;30&quot; x=&quot;335&quot; style=&quot;text-decoration:underline;&quot;&gt;\e[34;4m&lt;/tspan&gt;
+    &lt;tspan fill=&quot;magenta&quot; dy=&quot;30&quot; x=&quot;335&quot; style=&quot;text-decoration:underline;&quot;&gt;\e[35;4m&lt;/tspan&gt;
+    &lt;tspan fill=&quot;cyan&quot; dy=&quot;30&quot; x=&quot;335&quot; style=&quot;text-decoration:underline;&quot;&gt;\e[36;4m&lt;/tspan&gt;
+    &lt;tspan fill=&quot;white&quot; dy=&quot;30&quot; x=&quot;335&quot; style=&quot;text-decoration:underline;&quot;&gt;\e[37;4m&lt;/tspan&gt;
+  &lt;/text&gt;
+
+  &lt;text font-family=&quot;Verdana&quot; font-size=&quot;20&quot; y=&quot;50&quot; x=&quot;445&quot;&gt;
+    &lt;tspan fill=&quot;7e7e7e&quot;&gt;\e[30m&lt;/tspan&gt;
+    &lt;tspan fill=&quot;#ff7e7e&quot; dy=&quot;30&quot; x=&quot;445&quot;&gt;\e[91m&lt;/tspan&gt;
+    &lt;tspan fill=&quot;#7eff43&quot; dy=&quot;30&quot; x=&quot;445&quot;&gt;\e[92m&lt;/tspan&gt;
+    &lt;tspan fill=&quot;#ffff7e&quot; dy=&quot;30&quot; x=&quot;445&quot;&gt;\e[93m&lt;/tspan&gt;
+    &lt;tspan fill=&quot;#7e7eff&quot; dy=&quot;30&quot; x=&quot;445&quot;&gt;\e[94m&lt;/tspan&gt;
+    &lt;tspan fill=&quot;#ff7eff&quot; dy=&quot;30&quot; x=&quot;445&quot;&gt;\e[95m&lt;/tspan&gt;
+    &lt;tspan fill=&quot;#7effff&quot; dy=&quot;30&quot; x=&quot;445&quot;&gt;\e[96m&lt;/tspan&gt;
+    &lt;tspan fill=&quot;#eee&quot; dy=&quot;30&quot; x=&quot;445&quot;&gt;\e[97m&lt;/tspan&gt;
+  &lt;/text&gt;
+&lt;/svg&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Or, in fact, something completely different! You can set up red to look like blue but I wouldn’t recommend such a deception as it probably mess up some color themes in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;bash&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;zsh&lt;/code&gt; or anything else that runs in a terminal.&lt;/p&gt;
+
+&lt;p&gt;As you can see from command’s output there are several sets of color codes:&lt;/p&gt;
+
+&lt;div class=&quot;width-full flex justify-center my-5&quot;&gt;
+    &lt;table class=&quot;table table-bordered&quot;&gt;
+      &lt;tr&gt;
+        &lt;td class=&quot;font-semibold py-3&quot;&gt;Basic 8 colors&lt;/td&gt;
+        &lt;td class=&quot;pl-5&quot;&gt;30..37&lt;/td&gt;
+      &lt;/tr&gt;
+      &lt;tr&gt;
+        &lt;td class=&quot;font-semibold py-3&quot;&gt;Basic &quot;high contrast&quot; colors&lt;/td&gt;
+        &lt;td class=&quot;pl-5&quot;&gt;90..97&lt;/td&gt;
+      &lt;/tr&gt;
+      &lt;tr&gt;
+        &lt;td class=&quot;font-semibold py-3&quot;&gt;xterm-256 colors&lt;/td&gt;
+        &lt;td class=&quot;pl-5&quot;&gt;0..255&lt;/td&gt;
+      &lt;/tr&gt;
+    &lt;/table&gt;
+&lt;/div&gt;
+
+&lt;p&gt;And a set of text decoration indicators that should be placed right after the color code:&lt;/p&gt;
+
+&lt;div class=&quot;width-full flex justify-center my-5&quot;&gt;
+    &lt;table class=&quot;table table-bordered&quot;&gt;
+      &lt;tr&gt;
+        &lt;td class=&quot;font-semibold py-3&quot;&gt;Bold&lt;/td&gt;
+        &lt;td class=&quot;pl-5&quot;&gt;1&lt;/td&gt;
+      &lt;/tr&gt;
+      &lt;tr&gt;
+        &lt;td class=&quot;font-semibold py-3&quot;&gt;Underscore&lt;/td&gt;
+        &lt;td class=&quot;pl-5&quot;&gt;4&lt;/td&gt;
+      &lt;/tr&gt;
+      &lt;tr&gt;
+        &lt;td class=&quot;font-semibold py-3&quot;&gt;Background&lt;/td&gt;
+        &lt;td class=&quot;pl-5&quot;&gt;3&lt;/td&gt;
+      &lt;/tr&gt;
+    &lt;/table&gt;
+&lt;/div&gt;
+
+&lt;p&gt;If color code is prefixed by &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;38;5&lt;/code&gt; it is interpreted as one of 256 colors. E.g. &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\e[38;5;91m&lt;/code&gt; will color following text purple, while &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\e[91m&lt;/code&gt; will indicate bright red.&lt;/p&gt;
+
+&lt;p&gt;There’re several 256 color palettes out there. For example, a couple of the popular ones are &lt;a href=&quot;http://en.wikipedia.org/wiki/Web_colors#Web-safe_colors&quot;&gt;Web safe colors&lt;/a&gt; and &lt;a href=&quot;http://en.wikipedia.org/wiki/X11_color_names&quot;&gt;X11 colors&lt;/a&gt;. And though they’re both include 256 colors, they’re two different palettes!&lt;/p&gt;
+
+&lt;p&gt;To enable 256 colors support, you have to set up your terminal as &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;xterm-256color&lt;/code&gt; (in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;iTerm2&lt;/code&gt; go to &lt;strong&gt;Preferences&lt;/strong&gt; &amp;gt; &lt;strong&gt;Profiles&lt;/strong&gt; &amp;gt; &lt;strong&gt;Terminal&lt;/strong&gt; &amp;gt; &lt;strong&gt;Report Terminal Type&lt;/strong&gt; and put &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;xterm-256color&lt;/code&gt; into the field). The set of colors you’ll get is &lt;a href=&quot;http://en.wikipedia.org/wiki/File:Xterm_256color_chart.svg&quot;&gt;xterm-256 pallete&lt;/a&gt;. In some places, like Mac OSX default color picker, this palette is called “emacs”, though it doesn’t have anything to do with Emacs.&lt;/p&gt;
+
+&lt;p&gt;To list all colors available in 256 color mode with their codes run&lt;/p&gt;
+
+&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;for &lt;/span&gt;code &lt;span class=&quot;k&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;0..255&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;do &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;echo&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-e&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\e&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;[38;5;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;${&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;code&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;m&quot;&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&apos;\\e[38;5;&apos;&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$code&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;m&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\e&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;[0m&quot;&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;done&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;&lt;strong&gt;Bonus&lt;/strong&gt;: To list all colors available in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Emacs&lt;/code&gt; run &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;M-x list-colors-display&lt;/code&gt;.&lt;/p&gt;
+</content>
+  </entry>
+  
+  <entry>
+    <title>Copy Paste In Pry</title>
+    <link href="https://jafrog.com/2013/10/11/copy-paste-in-pry.html"/>
+    <updated>2013-10-11T00:00:00+00:00</updated>
+    <id>https://jafrog.com/2013/10/11/copy-paste-in-pry</id>
+    <content type="html">&lt;p&gt;The one thing that drives me crazy about Ruby shell is the pain of copy-pasting the code.&lt;/p&gt;
+
+&lt;p&gt;Let’s say you run &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;pry&lt;/code&gt; in iTerm2 and try to mess around some class code.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pry&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;main&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;Foo&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pry&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;main&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;   &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;foo&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pry&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;main&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;     &lt;span class=&quot;nb&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;bar&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pry&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;main&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;   &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pry&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;main&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;kp&quot;&gt;nil&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;And suddenly you realize that you meant to return “foo” from &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;foo&lt;/code&gt; method. Unfortunately, you can’t just move the pointer after “bar”, select three lines, copy and paste, as the prompt text will get into the selection too.&lt;/p&gt;
+
+&lt;p&gt;So here’s a quick and dirty solution.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pry&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;main&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;Pry&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;SIMPLE_PROMPT&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;proc&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;   &quot;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;},&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;proc&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;   &quot;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}]&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pry&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;main&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;simple&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;prompt&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Then you should have a REPL with no prompt at all. Just a lonely coursor floating in a dark space of your terminal.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;    &lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;Foo&lt;/span&gt;
+      &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;foo&lt;/span&gt;
+        &lt;span class=&quot;s2&quot;&gt;&quot;bar&quot;&lt;/span&gt;
+      &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+ &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;kp&quot;&gt;nil&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;But as creepy as it feels, at least you now can select-copy-paste as much as you want!&lt;/p&gt;
+
+&lt;p&gt;As a bonus, you can type &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;simple-prompt&lt;/code&gt; again and return to the regular mode.&lt;/p&gt;
+</content>
+  </entry>
+  
+  <entry>
+    <title>Inherit Classes From Struct</title>
+    <link href="https://jafrog.com/2012/11/22/inherit-classes-from-Struct.html"/>
+    <updated>2012-11-22T00:00:00+00:00</updated>
+    <id>https://jafrog.com/2012/11/22/inherit-classes-from-Struct</id>
+    <content type="html">&lt;p&gt;I’ve recently spotted a curious trend in blogposts about Ruby. It’s the way people define classes in examples. It goes like this:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;Foo&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;Struct&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;new&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;:bar&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+  &lt;span class=&quot;c1&quot;&gt;# some methods...&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Why? Because it’s shorter replacement for this:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;Foo&lt;/span&gt;
+  &lt;span class=&quot;nb&quot;&gt;attr_accessor&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:bar&lt;/span&gt;
+  
+  &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;initialize&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bar&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;vi&quot;&gt;@bar&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;bar&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;The other way to save typing on attributes lookes like this:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;no&quot;&gt;Foo&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;Struct&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;new&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;:bar&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
+  &lt;span class=&quot;c1&quot;&gt;# some methods...&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;It brought up an interesting discussion on twitter, when &lt;a href=&quot;http://twitter.com/jeg2&quot;&gt;@jeg2&lt;/a&gt; said he didn’t like the practice. One important consequence of using it that was mentioned in this discussion is changing of ancestor chain.&lt;/p&gt;
+
+&lt;p&gt;When declaring class usual way:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;no&quot;&gt;Foo&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;ancestors&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;Foo&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;Object&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;Kernel&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;BasicObject&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;When inheriting from &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Struct.new&lt;/code&gt;:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;no&quot;&gt;Foo&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;ancestors&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;Foo&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;#&amp;lt;Class:0x00000001d41100&amp;gt;, Struct, Enumerable, Object, Kernel, BasicObject]&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;When creating a constant from &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Struct.new&lt;/code&gt;:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;no&quot;&gt;Foo&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;ancestors&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;Foo&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;Struct&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;Enumerable&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;Object&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;Kernel&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;BasicObject&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Have you noticed &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Enumerable&lt;/code&gt; in two later cases? It means that suddenly instances of your class start to respond to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;each&lt;/code&gt; method and a bunch of other methods. So it’s better be careful using &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Struct&lt;/code&gt; like this.&lt;/p&gt;
+</content>
+  </entry>
+  
+  <entry>
+    <title>Mutable Objects As Hash Keys In Ruby</title>
+    <link href="https://jafrog.com/2012/10/07/mutable-objects-as-hash-keys-in-ruby.html"/>
+    <updated>2012-10-07T00:00:00+00:00</updated>
+    <id>https://jafrog.com/2012/10/07/mutable-objects-as-hash-keys-in-ruby</id>
+    <content type="html">&lt;p&gt;&lt;em&gt;Mutable object&lt;/em&gt; is an object that could be changed ‘in place’. Immutable, on the other hand means that you need to create another object if you want to change the value. Like this:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;c1&quot;&gt;# Arrays are mutable
+&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;a&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;a&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;object_id&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# =&amp;gt; 2235386320
+&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;a&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# =&amp;gt; [1, 2, 3]
+&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;a&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;object_id&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# =&amp;gt; 2235386320
+&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;# Integers are immutable
+&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;10&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;object_id&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# =&amp;gt; 21
+&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# creating a new object and assigning it to i
+&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# =&amp;gt; 11
+&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;object_id&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# =&amp;gt; 23&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;One of the interesting consequences of &lt;em&gt;mutability&lt;/em&gt; is a mutable object’s behavior when used as hash key.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;c1&quot;&gt;# It was peaceful sunny day, we were creating usual hashes, using arrays as keys...
+&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;h&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{}&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;a&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;h&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;a&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;kp&quot;&gt;true&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;h&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# =&amp;gt; {[1, 2] =&amp;gt; true}
+&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;# ... when suddenly...
+&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;a&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# =&amp;gt; [1, 2, 3]
+&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;h&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;a&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# =&amp;gt; nil
+&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;h&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# =&amp;gt; {[1, 2, 3] =&amp;gt; true}
+&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;# Wow! How did that happen? But wait, that&apos;s not all
+&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;h&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;kp&quot;&gt;false&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# =&amp;gt; {[1, 2, 3] =&amp;gt; true, [1, 2, 3] =&amp;gt; false}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;To understand what happened here we need to clarify how hashes store and retrieve objects. First let’s disambiguate the word &lt;em&gt;hash&lt;/em&gt;. In Ruby &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Hash&lt;/code&gt; is a class representing a data structure called &lt;em&gt;dictionary&lt;/em&gt; or &lt;em&gt;hash map&lt;/em&gt;. The word &lt;em&gt;hash&lt;/em&gt; in &lt;em&gt;hash map&lt;/em&gt; implies that when we add a key-value pair to a dictionary, key’s &lt;a href=&quot;http://en.wikipedia.org/wiki/Hash_function&quot;&gt;hash&lt;/a&gt; is stored along with the original pair. And when we search for a given key later, it’s found by first comparing key’s hashes and then, if hash was found, by keys themselves.&lt;/p&gt;
+
+&lt;p&gt;So when we used object &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;a&lt;/code&gt; as a key to the hash &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;h&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;a.hash&lt;/code&gt; was called. &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Object.hash&lt;/code&gt; is a method returning a hash of a given object (Department of Redundancy Department called - they want their sentence back).&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;n&quot;&gt;a&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;a&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;hash&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# =&amp;gt; 11&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Then we &lt;em&gt;mutated&lt;/em&gt; object &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;a&lt;/code&gt; by adding a new element to it. Let’s check what happened with &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;a&lt;/code&gt;’s hash.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;n&quot;&gt;a&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;a&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;hash&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# =&amp;gt; 25&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Predictably the hash of &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;a&lt;/code&gt; has changed. But the old hash of &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;a&lt;/code&gt; is already saved in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;h&lt;/code&gt;! And when we do &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;h[a]&lt;/code&gt; interpreter compares &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;a.hash&lt;/code&gt; with what is stored in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;h&lt;/code&gt; and doesn’t find a match. This is also the reason why the hash &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;h&lt;/code&gt; can have two seemingly similar keys - &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;{[1, 2, 3] =&amp;gt; true, [1, 2, 3] =&amp;gt; false}&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;But if the hash in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;h&lt;/code&gt; is the hash of &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;[1, 2]&lt;/code&gt; then it should be possible to retrieve a value under &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;a = [1, 2, 3]&lt;/code&gt; by the key &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;[1, 2]&lt;/code&gt;.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;n&quot;&gt;h&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]]&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# =&amp;gt; nil&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;This expression returned &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;nil&lt;/code&gt; because interpreter compares not only hashes but also keys. When we try to get a value using mutated object as a key, Ruby fails to find matching hash. When we use &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;[1, 2]&lt;/code&gt; - it fails to find matching key.&lt;/p&gt;
+
+&lt;p&gt;So to get &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;true&lt;/code&gt; from &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;h&lt;/code&gt; we need an object with hash like of array’s &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;[1, 2]&lt;/code&gt; and has a value like array &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;[1, 2, 3]&lt;/code&gt;. To get that object we can rewrite &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;hash&lt;/code&gt; method.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;n&quot;&gt;h&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# =&amp;gt; {[1, 2, 3] =&amp;gt; true, [1, 2, 3] =&amp;gt; false}
+&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# Remember the second [1, 2, 3] key&apos;s hash equals to [1, 2, 3].hash.
+&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;a&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;a&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;instance_eval&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;hash&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;].&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;hash&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;h&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;a&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# =&amp;gt; true&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;And that’s why it’s bad to use mutable objects as hash keys.&lt;/p&gt;
+</content>
+  </entry>
+  
+  <entry>
+    <title>Git Hyphen</title>
+    <link href="https://jafrog.com/2012/05/18/git-hyphen.html"/>
+    <updated>2012-05-18T00:00:00+00:00</updated>
+    <id>https://jafrog.com/2012/05/18/git-hyphen</id>
+    <content type="html">&lt;p&gt;Did you know, that you can use hyphen in git commands like ‘checkout’ or ‘merge’? Just like in ‘cd’ shell command.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;git checkout master
+Switched to branch &lt;span class=&quot;s1&quot;&gt;&apos;master&apos;&lt;/span&gt;
+&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;git checkout some-branch
+Switched to branch &lt;span class=&quot;s1&quot;&gt;&apos;some-branch&apos;&lt;/span&gt;
+&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;git checkout -
+Switched to branch &lt;span class=&quot;s1&quot;&gt;&apos;master&apos;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+</content>
+  </entry>
+  
+  <entry>
+    <title>Git Cherry</title>
+    <link href="https://jafrog.com/2012/03/22/git-cherry.html"/>
+    <updated>2012-03-22T00:00:00+00:00</updated>
+    <id>https://jafrog.com/2012/03/22/git-cherry</id>
+    <content type="html">&lt;p&gt;Sometimes overuse of git cherry-pick command leads to the situation, where actual difference between two branches is no longer the one you see in git &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;log branch1..branch2&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;For example, if repo has two branches: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;master&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;experimental&lt;/code&gt;. &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Master&lt;/code&gt;’s history looks like this:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;~/example&amp;gt; git checkout master
+~/example&amp;gt; git log &lt;span class=&quot;nt&quot;&gt;--oneline&lt;/span&gt;
+4c72a0a First commit
+24361e1 Initial commit&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;And experimental’s:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;~/example&amp;gt; git checkout experimental
+~/example&amp;gt; git log &lt;span class=&quot;nt&quot;&gt;--oneline&lt;/span&gt;
+31e76c6 Second experimental commit
+160a97c First experimental commit
+4c72a0a First commit
+24361e1 Initial commit&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Now let’s cherry-pick one commit to the master branch:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;~/example&amp;gt; git checkout master
+~/example&amp;gt; git cherry-pick 160a97c
+~/example&amp;gt; git log &lt;span class=&quot;nt&quot;&gt;--oneline&lt;/span&gt;
+f16b462 First experimental commit
+4c72a0a First commit
+24361e1 Initial commit&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Note that new commit has a different SHA-1 now, because &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;cherry-pick&lt;/code&gt; “applies changes introduced by some existing commits”, not moves commit object itself. So now if we try to see what’s new in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;experimental&lt;/code&gt; branch compared to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;master&lt;/code&gt; brach using &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;git log&lt;/code&gt;, we get this:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;~/example&amp;gt; git log master..experimental &lt;span class=&quot;nt&quot;&gt;--oneline&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;--graph&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;--pretty&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;format:&lt;span class=&quot;s1&quot;&gt;&apos;%H - %s&apos;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; 31e76c6893f01283bae005c9af1a25a7c63b1423 - Second experimental commit
+&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; 160a97cd0b1a32381e34ea5f72f5f39cacb77e14 - First experimental commit&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;There’s no difference between “First experimental commit” and “Second experimental commit” though changes presented by one of them is already in the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;master&lt;/code&gt;. But &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;git cherry&lt;/code&gt; command can show that difference.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;~/example&amp;gt; git cherry master experimental &lt;span class=&quot;nt&quot;&gt;-v&lt;/span&gt;
+- 160a97cd0b1a32381e34ea5f72f5f39cacb77e14 First experimental commit
++ 31e76c6893f01283bae005c9af1a25a7c63b1423 Second experimental commit&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;&lt;em&gt;+&lt;/em&gt; means that “upstream” (in this case &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;master&lt;/code&gt; branch) lacks both commit object and it’s changes. &lt;em&gt;-&lt;/em&gt; tells us that changes of this commit are represented by a different commit object in “upstream”.&lt;/p&gt;
+
+&lt;p&gt;Now a little more about command syntax:&lt;/p&gt;
+
+&lt;p&gt;The first argument (optional, defaults to the branch’s remote) is &lt;em&gt;upstream&lt;/em&gt;. There’s a lot of confusion about this term, so I would recommend &lt;a href=&quot;http://stackoverflow.com/questions/2739376/definition-of-downstream-and-upstream&quot;&gt;this question on StackOverflow&lt;/a&gt;. In this case upstream is simply a branch in which you want to know what commits from another branch (head) are present. The second argument “head” is also optional and defaults to &lt;a href=&quot;http://stackoverflow.com/questions/2304087/what-is-git-head-exactly&quot;&gt;current HEAD&lt;/a&gt;.&lt;/p&gt;
+</content>
+  </entry>
+  
+ 
+</feed>

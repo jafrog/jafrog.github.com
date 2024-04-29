@@ -1,0 +1,165 @@
+<!DOCTYPE HTML>
+<head>
+  <meta http-equiv='Content-Type' content='text/html; charset=utf-8' />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/main.css" type="text/css" media="screen" />
+  <link rel="stylesheet" href="/css/syntax.css" type="text/css" media="screen" />
+<!--  <link rel="stylesheet" href="/css/pygments.css" type="text/css" media="screen" />-->
+
+  <!-- Google analytics -->
+  <script type="text/javascript">
+
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-30366699-2']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+
+  </script>
+
+  <title>jafrog</title>
+</head>
+
+<body>
+  <div class="mx-auto max-w-7xl sm:px-6 lg:px-8 bg-slate-50 font-plex">
+    <div class="mx-auto max-w-5xl sm:px-8 lg:px-24">
+      <div class="flex justify-between sm:py-6 md:py-12 border-b">
+    <div class="flex flex-col justify-start">
+        <h1 class="text-3xl font-semibold">
+            <a href="/">jafrog's dev blog</a>
+        </h1>
+        <div class="flex justify-start items-center mt-2`">
+            <a href="https://www.github.com/jafrog">
+                <img src="/assets/github.svg" alt="Github" class="w-6 h-6" />
+            </a>
+            <a href="https://www.linkedin.com/in/irinabednova/">
+                <img src="/assets/linkedin.svg" alt="Linkedin" class="w-6 h-6">
+            </a>
+        </div>
+    </div>
+    <div class="right-0 flex items-center">
+        <img src="/assets/avatar.jpg" alt="jafrog" class="h-16 w-16 rounded-full" />
+    </div>
+</div>
+
+      <script src="/assets/snap.svg.js"></script>
+<div class="pt-20">
+  <div class="flex items-center pb-2">
+    <img src="/assets/calendar.svg" alt="Time" class="w-4 h-4" />
+    <time class="pl-1 text-gray-500" datetime="2012-10-07 00:00:00 +0000">07 October 2012</time>
+  </div>
+  <div class="text-3xl pb-10 font-medium text-sky-500">Mutable Objects As Hash Keys In Ruby</div>
+</div>
+<div class="pb-20">
+  <p><em>Mutable object</em> is an object that could be changed ‘in place’. Immutable, on the other hand means that you need to create another object if you want to change the value. Like this:</p>
+
+<figure class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="c1"># Arrays are mutable
+</span>
+<span class="n">a</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
+<span class="n">a</span><span class="p">.</span><span class="nf">object_id</span>
+<span class="c1"># =&gt; 2235386320
+</span>
+<span class="n">a</span> <span class="o">&lt;&lt;</span> <span class="mi">3</span>
+<span class="c1"># =&gt; [1, 2, 3]
+</span>
+<span class="n">a</span><span class="p">.</span><span class="nf">object_id</span>
+<span class="c1"># =&gt; 2235386320
+</span>
+
+<span class="c1"># Integers are immutable
+</span>
+<span class="n">i</span> <span class="o">=</span> <span class="mi">10</span>
+<span class="n">i</span><span class="p">.</span><span class="nf">object_id</span>
+<span class="c1"># =&gt; 21
+</span>
+<span class="n">i</span> <span class="o">=</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span> <span class="c1"># creating a new object and assigning it to i
+</span>
+<span class="c1"># =&gt; 11
+</span>
+<span class="n">i</span><span class="p">.</span><span class="nf">object_id</span>
+<span class="c1"># =&gt; 23</span></code></pre></figure>
+
+<p>One of the interesting consequences of <em>mutability</em> is a mutable object’s behavior when used as hash key.</p>
+
+<figure class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="c1"># It was peaceful sunny day, we were creating usual hashes, using arrays as keys...
+</span>
+<span class="n">h</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="n">a</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
+<span class="n">h</span><span class="p">[</span><span class="n">a</span><span class="p">]</span> <span class="o">=</span> <span class="kp">true</span>
+<span class="n">h</span>
+<span class="c1"># =&gt; {[1, 2] =&gt; true}
+</span>
+
+<span class="c1"># ... when suddenly...
+</span>
+<span class="n">a</span> <span class="o">&lt;&lt;</span> <span class="p">[</span><span class="mi">3</span><span class="p">]</span>
+<span class="c1"># =&gt; [1, 2, 3]
+</span>
+<span class="n">h</span><span class="p">[</span><span class="n">a</span><span class="p">]</span>
+<span class="c1"># =&gt; nil
+</span>
+<span class="n">h</span>
+<span class="c1"># =&gt; {[1, 2, 3] =&gt; true}
+</span>
+
+<span class="c1"># Wow! How did that happen? But wait, that's not all
+</span>
+<span class="n">h</span><span class="p">[[</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">]]</span> <span class="o">=</span> <span class="kp">false</span>
+<span class="c1"># =&gt; {[1, 2, 3] =&gt; true, [1, 2, 3] =&gt; false}</span></code></pre></figure>
+
+<p>To understand what happened here we need to clarify how hashes store and retrieve objects. First let’s disambiguate the word <em>hash</em>. In Ruby <code class="language-plaintext highlighter-rouge">Hash</code> is a class representing a data structure called <em>dictionary</em> or <em>hash map</em>. The word <em>hash</em> in <em>hash map</em> implies that when we add a key-value pair to a dictionary, key’s <a href="http://en.wikipedia.org/wiki/Hash_function">hash</a> is stored along with the original pair. And when we search for a given key later, it’s found by first comparing key’s hashes and then, if hash was found, by keys themselves.</p>
+
+<p>So when we used object <code class="language-plaintext highlighter-rouge">a</code> as a key to the hash <code class="language-plaintext highlighter-rouge">h</code>, <code class="language-plaintext highlighter-rouge">a.hash</code> was called. <code class="language-plaintext highlighter-rouge">Object.hash</code> is a method returning a hash of a given object (Department of Redundancy Department called - they want their sentence back).</p>
+
+<figure class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="n">a</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
+<span class="n">a</span><span class="p">.</span><span class="nf">hash</span>
+<span class="c1"># =&gt; 11</span></code></pre></figure>
+
+<p>Then we <em>mutated</em> object <code class="language-plaintext highlighter-rouge">a</code> by adding a new element to it. Let’s check what happened with <code class="language-plaintext highlighter-rouge">a</code>’s hash.</p>
+
+<figure class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="n">a</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
+<span class="n">a</span><span class="p">.</span><span class="nf">hash</span>
+<span class="c1"># =&gt; 25</span></code></pre></figure>
+
+<p>Predictably the hash of <code class="language-plaintext highlighter-rouge">a</code> has changed. But the old hash of <code class="language-plaintext highlighter-rouge">a</code> is already saved in <code class="language-plaintext highlighter-rouge">h</code>! And when we do <code class="language-plaintext highlighter-rouge">h[a]</code> interpreter compares <code class="language-plaintext highlighter-rouge">a.hash</code> with what is stored in <code class="language-plaintext highlighter-rouge">h</code> and doesn’t find a match. This is also the reason why the hash <code class="language-plaintext highlighter-rouge">h</code> can have two seemingly similar keys - <code class="language-plaintext highlighter-rouge">{[1, 2, 3] =&gt; true, [1, 2, 3] =&gt; false}</code>.</p>
+
+<p>But if the hash in <code class="language-plaintext highlighter-rouge">h</code> is the hash of <code class="language-plaintext highlighter-rouge">[1, 2]</code> then it should be possible to retrieve a value under <code class="language-plaintext highlighter-rouge">a = [1, 2, 3]</code> by the key <code class="language-plaintext highlighter-rouge">[1, 2]</code>.</p>
+
+<figure class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="n">h</span><span class="p">[[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]]</span>
+<span class="c1"># =&gt; nil</span></code></pre></figure>
+
+<p>This expression returned <code class="language-plaintext highlighter-rouge">nil</code> because interpreter compares not only hashes but also keys. When we try to get a value using mutated object as a key, Ruby fails to find matching hash. When we use <code class="language-plaintext highlighter-rouge">[1, 2]</code> - it fails to find matching key.</p>
+
+<p>So to get <code class="language-plaintext highlighter-rouge">true</code> from <code class="language-plaintext highlighter-rouge">h</code> we need an object with hash like of array’s <code class="language-plaintext highlighter-rouge">[1, 2]</code> and has a value like array <code class="language-plaintext highlighter-rouge">[1, 2, 3]</code>. To get that object we can rewrite <code class="language-plaintext highlighter-rouge">hash</code> method.</p>
+
+<figure class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="n">h</span>
+<span class="c1"># =&gt; {[1, 2, 3] =&gt; true, [1, 2, 3] =&gt; false}
+</span>
+<span class="c1"># Remember the second [1, 2, 3] key's hash equals to [1, 2, 3].hash.
+</span>
+<span class="n">a</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
+
+<span class="n">a</span><span class="p">.</span><span class="nf">instance_eval</span> <span class="k">do</span>
+  <span class="k">def</span> <span class="nf">hash</span>
+    <span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">].</span><span class="nf">hash</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+
+<span class="n">h</span><span class="p">[</span><span class="n">a</span><span class="p">]</span>
+<span class="c1"># =&gt; true</span></code></pre></figure>
+
+<p>And that’s why it’s bad to use mutable objects as hash keys.</p>
+
+</div>
+
+
+    </div>
+  </div>
+</body>

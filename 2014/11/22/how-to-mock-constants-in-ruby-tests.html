@@ -1,0 +1,89 @@
+<!DOCTYPE HTML>
+<head>
+  <meta http-equiv='Content-Type' content='text/html; charset=utf-8' />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/main.css" type="text/css" media="screen" />
+  <link rel="stylesheet" href="/css/syntax.css" type="text/css" media="screen" />
+<!--  <link rel="stylesheet" href="/css/pygments.css" type="text/css" media="screen" />-->
+
+  <!-- Google analytics -->
+  <script type="text/javascript">
+
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-30366699-2']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+
+  </script>
+
+  <title>jafrog</title>
+</head>
+
+<body>
+  <div class="mx-auto max-w-7xl sm:px-6 lg:px-8 bg-slate-50 font-plex">
+    <div class="mx-auto max-w-5xl sm:px-8 lg:px-24">
+      <div class="flex justify-between sm:py-6 md:py-12 border-b">
+    <div class="flex flex-col justify-start">
+        <h1 class="text-3xl font-semibold">
+            <a href="/">jafrog's dev blog</a>
+        </h1>
+        <div class="flex justify-start items-center mt-2`">
+            <a href="https://www.github.com/jafrog">
+                <img src="/assets/github.svg" alt="Github" class="w-6 h-6" />
+            </a>
+            <a href="https://www.linkedin.com/in/irinabednova/">
+                <img src="/assets/linkedin.svg" alt="Linkedin" class="w-6 h-6">
+            </a>
+        </div>
+    </div>
+    <div class="right-0 flex items-center">
+        <img src="/assets/avatar.jpg" alt="jafrog" class="h-16 w-16 rounded-full" />
+    </div>
+</div>
+
+      <script src="/assets/snap.svg.js"></script>
+<div class="pt-20">
+  <div class="flex items-center pb-2">
+    <img src="/assets/calendar.svg" alt="Time" class="w-4 h-4" />
+    <time class="pl-1 text-gray-500" datetime="2014-11-22 00:00:00 +0000">22 November 2014</time>
+  </div>
+  <div class="text-3xl pb-10 font-medium text-sky-500">How To Mock Constants In Ruby Tests</div>
+</div>
+<div class="pb-20">
+  <p>Annoyingly large amount of time was spent by me trying to figure out a way to mock constants / classes in tests for our Rails project. The trick is not only in defining the correct constant in the correct namespace, but also in removing it afterwards so the rest of the tests in the suite still use the original one.</p>
+
+<p>So here’s trivial but nevertheless useful snippet to do just that.</p>
+
+<figure class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="n">describe</span> <span class="no">ModuleName</span><span class="o">::</span><span class="no">ClassName</span> <span class="k">do</span>
+  <span class="k">unless</span> <span class="no">ModuleName</span><span class="p">.</span><span class="nf">const_defined?</span><span class="p">(</span><span class="ss">:ClassToMock</span><span class="p">)</span>
+    <span class="n">before</span> <span class="k">do</span>
+      <span class="no">ModuleName</span><span class="p">.</span><span class="nf">send</span><span class="p">(</span><span class="ss">:const_set</span><span class="p">,</span> <span class="s2">"ClassToMock"</span><span class="p">,</span> <span class="no">Struct</span><span class="p">.</span><span class="nf">new</span><span class="p">(</span><span class="ss">:foo</span><span class="p">,</span> <span class="ss">:bar</span><span class="p">))</span>
+    <span class="k">end</span>
+
+    <span class="n">after</span> <span class="k">do</span>
+      <span class="no">ModuleName</span><span class="p">.</span><span class="nf">send</span><span class="p">(</span><span class="ss">:remove_const</span><span class="p">,</span> <span class="s2">"ClassToMock"</span><span class="p">)</span>
+    <span class="k">end</span>
+  <span class="k">end</span>
+  <span class="o">...</span>
+<span class="k">end</span></code></pre></figure>
+
+<p>Here I used <code class="language-plaintext highlighter-rouge">MiniTest</code>, but the same could be done with <code class="language-plaintext highlighter-rouge">RSpec</code> or <code class="language-plaintext highlighter-rouge">Test::Unit</code>’s <code class="language-plaintext highlighter-rouge">setup</code> and <code class="language-plaintext highlighter-rouge">teardown</code> methods.</p>
+
+<p>What exactly is it useful for? If the test runs in isolation it contains everything it needs because all dependencies for <code class="language-plaintext highlighter-rouge">ModuleName::ClassName</code> you don’t care about are mocked. Very useful when developing a feature as you don’t have to load any extra code and the test runs very fast.</p>
+
+<p>As soon as you’re done and the test becomes a part of the suite, <code class="language-plaintext highlighter-rouge">ClassToMock</code> should no longer be mocked as the whole app’s code is loaded anyway when running all tests together. So when <code class="language-plaintext highlighter-rouge">ClassToMock</code> is defined <code class="language-plaintext highlighter-rouge">before</code> and <code class="language-plaintext highlighter-rouge">after</code> blocks are omitted. Nice and tidy.</p>
+
+</div>
+
+
+    </div>
+  </div>
+</body>

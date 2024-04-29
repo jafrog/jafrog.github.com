@@ -1,0 +1,399 @@
+<!DOCTYPE HTML>
+<head>
+  <meta http-equiv='Content-Type' content='text/html; charset=utf-8' />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/main.css" type="text/css" media="screen" />
+  <link rel="stylesheet" href="/css/syntax.css" type="text/css" media="screen" />
+<!--  <link rel="stylesheet" href="/css/pygments.css" type="text/css" media="screen" />-->
+
+  <!-- Google analytics -->
+  <script type="text/javascript">
+
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-30366699-2']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+
+  </script>
+
+  <title>jafrog</title>
+</head>
+
+<body>
+  <div class="mx-auto max-w-7xl sm:px-6 lg:px-8 bg-slate-50 font-plex">
+    <div class="mx-auto max-w-5xl sm:px-8 lg:px-24">
+      <div class="flex justify-between sm:py-6 md:py-12 border-b">
+    <div class="flex flex-col justify-start">
+        <h1 class="text-3xl font-semibold">
+            <a href="/">jafrog's dev blog</a>
+        </h1>
+        <div class="flex justify-start items-center mt-2`">
+            <a href="https://www.github.com/jafrog">
+                <img src="/assets/github.svg" alt="Github" class="w-6 h-6" />
+            </a>
+            <a href="https://www.linkedin.com/in/irinabednova/">
+                <img src="/assets/linkedin.svg" alt="Linkedin" class="w-6 h-6">
+            </a>
+        </div>
+    </div>
+    <div class="right-0 flex items-center">
+        <img src="/assets/avatar.jpg" alt="jafrog" class="h-16 w-16 rounded-full" />
+    </div>
+</div>
+
+      <script src="/assets/snap.svg.js"></script>
+<div class="pt-20">
+  <div class="flex items-center pb-2">
+    <img src="/assets/calendar.svg" alt="Time" class="w-4 h-4" />
+    <time class="pl-1 text-gray-500" datetime="2014-08-30 00:00:00 +0000">30 August 2014</time>
+  </div>
+  <div class="text-3xl pb-10 font-medium text-sky-500">Testing A Shift Register</div>
+</div>
+<div class="pb-20">
+  <h2 id="motivation">Motivation</h2>
+
+<p>This winter I had my first Hack Days at FreeAgent. During the Hack Days everybody at FreeAgent teams up for a couple of days and builds something fun and (preferably) useful. That’s when “Machine that goes ‘Ping!’” was born.</p>
+
+<p><img src="/assets/posts/wiring-a-shift-register/ping1.JPG" alt="Machine that goes 'Ping!'" /></p>
+
+<p>With an Arduino Uno board, some Sugru, bicycle bell, a few LEDs, servo motor and a RabbitMQ subscription to production logs it was able to ring a bell and flash some ligths every time FreeAgent got a new subscriber. The machine was a grand success.</p>
+
+<iframe src="//instagram.com/p/k_3egwjwAP/embed/" width="500" height="550" frameborder="0" scrolling="no" allowtransparency="true" style="display: block; margin: 50px auto;">&#160;</iframe>
+
+<p>This little project inspired me to do something more challenging. I wanted to further develop the idea of the subsribers counter and I knew that the new version of the machine should not only make a sound when a user subsribes or unsibscribes but also display the total number of subscribers. As an inspiration I used <a href="http://www.instructables.com/id/Nixie-Tube-Geiger-Counter/">this</a> Geiger counter project I found a while ago. I hadn’t completely figured out the design yet, but decided to use <a href="http://en.wikipedia.org/wiki/Nixie_tube">Nixie tubes</a> anyway.</p>
+
+<h2 id="the-project">The project</h2>
+
+<p>Here’s the impression of what the finished product might look like produced with my rudimentary drawing skills:</p>
+
+<p><img src="/assets/posts/wiring-a-shift-register/impression.jpg" alt="Project sketch" /></p>
+
+<p>On the inside the architecture is pretty simple: Raspberry Pi gets the total number of subscribers and an event of subscription somewhere online. It sends the number to the Nixie tubes for display and a signal to the speaker on a subscription event.</p>
+
+<p><img src="/assets/posts/wiring-a-shift-register/PrincipalScheme.png" alt="High level overview" style="max-width: 800px;" /></p>
+
+<p>The first part of this scheme I’m going to dive into is the Nixie tubes part.</p>
+
+<h2 id="nixie-tubes">Nixie tubes</h2>
+
+<p>A Nixie tube is a vacuum tube with a bunch of electrodes inside. When current goes through the tube electrodes glow due to the effect called <a href="http://en.wikipedia.org/wiki/Glow_discharge">glow discharge</a>.</p>
+
+<p>If you put two electrodes - cathode (-) and anode (+) - in a tube filled with gas, and apply enough voltage, electrons start to “break” from cathode and fly to anode ionizing gas inside the tube and causing a glow.</p>
+
+<p>Nixie tubes have multiple cathodes, shaped like digits from 0 to 9, and one anode. If you connect this common anode to a high-voltage power source and connect one of the digit cathodes to the ground you’ll see the digit glowing with bright light.</p>
+
+<p>Nixie tubes come in different varieties. I’ve got the model <a href="http://www.kosbo.com/info/IN4_layout.pdf"><code class="language-plaintext highlighter-rouge">IN-4</code></a>.</p>
+
+<p><code class="language-plaintext highlighter-rouge">IN-4</code> tubes have 14 pins: 10 digits-cathodes, an anode (pin 4) and 3 more pins the meaning of which is unknown to me.</p>
+
+<div class="center-block" style="margin-bottom: 50px; text-align: center;">
+  <img alt="IN-4 Nixie tube" src="/assets/posts/wiring-a-shift-register/in4.png" style="margin-bottom: 5px;" />
+  <span style="font-size: 12px;">Image courtesy of http://www.tube-tester.com</span>
+</div>
+
+<p>Because Nixie tubes operate at such high voltage (180V) and because it’s not very handy to look up a pin number you have to “activate” every time you want to display a digit a <strong>driver</strong> should be placed between a controlling device and a tube.</p>
+
+<p>In this project I used <code class="language-plaintext highlighter-rouge">K155ID</code> chip - a high-voltage BCD-to-decimal decoder. More on this in the next post. For now let’s just assume that for each tube we have 4 input pins instead of 10 and if we send a binary coded number from 0 to 9 to these pins the number would show up on a Nixie tube attached to the driver.</p>
+
+<h2 id="shift-registers">Shift registers</h2>
+
+<p>To show a 6 digit number, we have to send signals to 6 * 4 = 24 input pins. That’s way too many inputs for a simple device, let’s try to reduce the number.</p>
+
+<p>One way to do this is to align all 24 pins, connect them to a single wire and connect that wire to a Raspberry Pi. Then we can send one signal at a time for each pin on this wire, i.e. form a succession of “messages” like “1 to pin #23”, “0 to pin #22” etc. This process is called <a href="http://en.wikipedia.org/wiki/Multiplexing">multiplexing</a>.</p>
+
+<p>Of course we will need a device that will decide which pin is to receive what signal. For that we can use <a href="http://en.wikipedia.org/wiki/Shift_register">shift registers</a>.</p>
+
+<p>Serial-in, parallel-out shift register is an electronic device that receives a serial input (a sequence of “1” and “0” send one after another), stores it and transforms it to the parallel output.</p>
+
+<div class="center-block" style="margin-bottom: 50px; text-align: center;">
+  <img alt="Shift Register" src="/assets/posts/wiring-a-shift-register/ShiftRegComponent.gif" style="margin-bottom: 5px;" />
+  <span style="font-size: 12px;">Image courtesy of www.circuitsathome.com</span>
+</div>
+
+<p>Shift registers have two clock inputs: <code class="language-plaintext highlighter-rouge">SHCP</code> or <code class="language-plaintext highlighter-rouge">SCK</code> (Shift Register Clock) and <code class="language-plaintext highlighter-rouge">STCP</code> or <code class="language-plaintext highlighter-rouge">RCK</code> (Storage Register Clock). Every time signal changes from 0 to 1 on <code class="language-plaintext highlighter-rouge">SHCP</code> input all data stored in shift register “shifted” one bit to the right. When <code class="language-plaintext highlighter-rouge">STCP</code> input is triggered, the data stored in shift the register gets sent to the outputs.</p>
+
+<script type="text/javascript">
+ document.addEventListener("DOMContentLoaded", function(event) {
+   var svg = Snap("svg#shift_reg"),
+   marker = svg.path("M 0 0 L 10 5 L 0 10 z").marker(0,0,3,3,1,5).attr({"viewBox": "0 0 10 10"}),
+   shcp = svg.text(40, 140, "SHCP").attr({"font-size": "28px", opacity: 0}),
+   stcp = svg.text(40, 180, "STCP").attr({"font-size": "28px", opacity: 0}),
+   input_arrow = svg.line(150, 80, 180, 80).attr({"marker-end": marker,
+                                                  "stroke-width": 3}),
+   x = 190,
+   output_rects = svg.g().attr({fill: "white", "stroke-width": 3}),
+   output_rects_labels = svg.g(),
+   input_signals = [1,0,0,1,0,0,1,0],
+   input_string = input_signals.join(""),
+   input_string_el = svg.text(35, 90, input_string),
+   input_texts = svg.g(),
+   output_lines = svg.g(),
+   outputs = svg.g().append(input_texts).append(output_lines);
+
+   input_signals.reverse();
+   for (var i=0; i<8; i++) {
+     output_rects.add(svg.rect(x, 60, 40, 40));
+     output_rects_labels.add(svg.text(x+5, 130, "Q"+i));
+     output_lines.add(svg.line(x+17, 60, x+17, 50).attr({"marker-end": marker,
+                                                         "stroke-width": 3}));
+     x += 40;
+     input_texts.add(svg.text(130, 90, String(input_signals[i])).attr({opacity: "0"}));
+   }
+
+   output_rects.add(svg.rect(x, 60, 40, 40));
+   output_rects_labels.add(svg.text(x+12, 130, "S"));
+
+   function blink_text(text, i) {
+     opacity = i % 2
+     text.attr({opacity: opacity});
+   }
+
+   x = 200;
+   function run_animation(tick, digits_moved, finished) {
+     blink_text(shcp, tick);
+     if (digits_moved == 8) { blink_text(stcp, tick); }
+     var finished_on_next = false;
+     // Move input every 2 is until all of them moved
+     if (tick % 2 != 0) {
+       if (digits_moved <= 7) {
+         input_string_el.attr({text: input_string.substring(0, 7 - digits_moved), x: 35 + digits_moved * 15});
+         for (var j=0; j<=digits_moved; j++) {
+           input_texts[j].attr({opacity: 1});
+           input_texts[j].attr({x: x + 40 * digits_moved - 40 * j});
+         }
+       } else {
+         outputs.animate({transform: "t0 -40"}, 300, mina.easein);
+
+         finished_on_next = true;
+       }
+       digits_moved++;
+     }
+
+     if (finished) {
+       digits_moved = -1;
+       tick = -1;
+       finished_on_next = false;
+       stcp.attr({opacity: 0});
+       outputs.transform("t0 0");
+       for (var i=0; i<8; i++) {
+         input_texts[i].attr({x:200, opacity: 0});
+       }
+     }
+
+     setTimeout(run_animation, 500, tick+1, digits_moved, finished_on_next);
+   }
+
+   run_animation(0, 0, false);
+ });
+</script>
+
+<svg xmlns="http://www.w3.org/2000/svg" id="shift_reg" width="600" height="200" class="center-block" stroke="black" style="font-family: Monaco;
+     font-size: 24px;">
+</svg>
+
+<p>Shift registers can be stacked together, each later one using <strong>serial output</strong> of the previous one as a <strong>serial input</strong>. This way the array of shift registers can be used as one big register, allowing to store and convert larger numbers.</p>
+
+<script type="text/javascript">
+ document.addEventListener("DOMContentLoaded", function(event) {
+   var svg = Snap("#two_shift_regs"),
+   marker = svg.path("M 0 0 L 10 5 L 0 10 z").marker(0,0,3,3,1,5).attr({"viewBox": "0 0 10 10"}),
+   x = 0,
+   shift_reg1 = svg.g(),
+   input = svg.text(200, 90, "1").attr({opacity: 0}),
+   shcp = svg.text(40, 180, "SHCP").attr({"font-size": "28px", opacity: 0});
+
+   function blink_text(text, i) {
+     opacity = i % 2
+     text.attr({opacity: opacity});
+   }
+
+   svg.text(x, 90, "...");
+   x += 50;
+
+   for (var i=6; i<9; i++) {
+     shift_reg1.add(svg.rect(x, 60, 40, 40).attr({fill: "white", "stroke-width": 3}));
+     var text = "Q"+i, offset = 5;
+     if (i == 8) { text = "S"; offset = 12; }
+     shift_reg1.add(svg.text(x+offset, 130, text));
+     x += 40;
+   }
+
+   svg.line(x, 80, x+30, 80).attr({"marker-end": marker, "stroke-width": 3});
+   shift_reg1.clone().transform("t160 0");
+   svg.text(x+160, 90, "...")
+
+   x = 60;
+   function run_animation(tick, digits_moved, finished) {
+     blink_text(shcp, tick);
+
+     var finished_on_next = false;
+     // Move input every 2 is until all of them moved
+     if (digits_moved == 3) { input.animate({transform: "t80 0"}, 300) }
+     if (tick % 2 != 0) {
+       input.attr({x: x + 40 * digits_moved, opacity: 1});
+       if (digits_moved == 4) { finished_on_next = true; }
+
+       digits_moved++;
+     }
+
+     if (finished) {
+       digits_moved = 0;
+       tick = -1;
+       finished_on_next = false;
+       input.attr({x: x, opacity: 0}).transform("t0 0");
+     }
+
+     setTimeout(run_animation, 500, tick+1, digits_moved, finished_on_next);
+   }
+
+   run_animation(0, 0, false);
+ });
+</script>
+
+<svg xmlns="http://www.w3.org/2000/svg" id="two_shift_regs" width="400" height="200" class="center-block" stroke="black" style="font-family: Monaco;
+     font-size: 24px;">
+</svg>
+
+<p>As <a href="http://www.nxp.com/documents/data_sheet/74HC_HCT595.pdf"><code class="language-plaintext highlighter-rouge">74HC595</code> shift registers</a> have 8 outputs we can connect two Nixie tube drivers to each of them.</p>
+
+<p><img src="/assets/posts/wiring-a-shift-register/scheme.png" alt="Overall schematic" /></p>
+
+<p>Three boards like this connected one to another can drive 6 Nixie tubes. Elements <code class="language-plaintext highlighter-rouge">JP2</code> and <code class="language-plaintext highlighter-rouge">JP3</code> are sockets containing five wires common to all boards: power (<code class="language-plaintext highlighter-rouge">VCC</code>), ground (<code class="language-plaintext highlighter-rouge">GND</code>), <code class="language-plaintext highlighter-rouge">SHCP</code> (<code class="language-plaintext highlighter-rouge">CLK</code>), <code class="language-plaintext highlighter-rouge">STCP</code> (<code class="language-plaintext highlighter-rouge">LATCH</code>) and <code class="language-plaintext highlighter-rouge">RESET</code> (an input signal used to clear a shift register) and serial input and output.</p>
+
+<p>Serial output of the first shift register (<code class="language-plaintext highlighter-rouge">QH*</code>) becomes a serial input of the second one while the serial input of the first register (<code class="language-plaintext highlighter-rouge">SER</code>) is connected to a Raspberry Pi.</p>
+
+<h2 id="testing-a-shift-register">Testing a shift register</h2>
+
+<p>To test a shift register on a series of simple inputs we can use an Arduino Uno. We need to plug three inputs of the shift register to Arduino: <code class="language-plaintext highlighter-rouge">SHCP</code> and <code class="language-plaintext highlighter-rouge">STCP</code> clocks and serial input <code class="language-plaintext highlighter-rouge">DS</code>. To monitor the state, we connect 8 LEDs to the outputs.</p>
+
+<p><img src="/assets/posts/wiring-a-shift-register/ShiftRegSketch.png" alt="Shift Register Arduino" /></p>
+
+<p>The first test is to send a single <code class="language-plaintext highlighter-rouge">1</code> to the <code class="language-plaintext highlighter-rouge">DS</code> input and “shift” it from the first output pin to the last, blinking the LEDs as the number shifts.</p>
+
+<figure class="highlight"><pre><code class="language-c" data-lang="c"><span class="cm">/*
+  Testing Shift Register 74HC595N
+  Shifting 1 from Q0 to Q7 and over again
+ */</span>
+
+<span class="kt">int</span> <span class="n">shcp</span> <span class="o">=</span> <span class="mi">7</span><span class="p">;</span>  <span class="c1">// Connect shift register clock input to pin 7</span>
+<span class="kt">int</span> <span class="n">stcp</span> <span class="o">=</span> <span class="mi">12</span><span class="p">;</span> <span class="c1">// Connect storage register clock input to pin 12</span>
+<span class="kt">int</span> <span class="n">ds</span>   <span class="o">=</span> <span class="mi">8</span><span class="p">;</span>  <span class="c1">// Connect serial data input to pin 8</span>
+
+<span class="kt">int</span> <span class="n">shcp_count</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="c1">// A counter for the shift register clock</span>
+<span class="kt">int</span> <span class="n">ds_state</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>   <span class="c1">// Equals to 1 if the Serial Input received 1</span>
+
+<span class="c1">// the setup routine runs once when you press reset:</span>
+<span class="kt">void</span> <span class="nf">setup</span><span class="p">()</span> <span class="p">{</span>
+  <span class="c1">// initialize the digital pin as an output.</span>
+  <span class="n">pinMode</span><span class="p">(</span><span class="n">shcp</span><span class="p">,</span> <span class="n">OUTPUT</span><span class="p">);</span>
+  <span class="n">pinMode</span><span class="p">(</span><span class="n">stcp</span><span class="p">,</span> <span class="n">OUTPUT</span><span class="p">);</span>
+  <span class="n">pinMode</span><span class="p">(</span><span class="n">ds</span><span class="p">,</span> <span class="n">OUTPUT</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="c1">// the loop routine runs over and over again forever:</span>
+<span class="kt">void</span> <span class="nf">loop</span><span class="p">()</span> <span class="p">{</span>
+  <span class="n">digitalWrite</span><span class="p">(</span><span class="n">shcp</span><span class="p">,</span> <span class="o">!</span><span class="n">digitalRead</span><span class="p">(</span><span class="n">shcp</span><span class="p">));</span> <span class="c1">// Tick the shift register clock</span>
+  <span class="n">shcp_count</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">;</span>
+
+  <span class="c1">// Set all variables to the initial state</span>
+  <span class="c1">// after the sequence is finished</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">shcp_count</span> <span class="o">==</span> <span class="mi">20</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">shcp_count</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="n">ds_state</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="c1">// Let the Shift Register Clock tick once (LOW -&gt; HIGH, HIGH -&gt; LOW)</span>
+  <span class="c1">// before writing to the serial input;</span>
+  <span class="k">if</span> <span class="p">((</span><span class="n">shcp_count</span> <span class="o">==</span> <span class="mi">2</span><span class="p">)</span> <span class="o">&amp;&amp;</span> <span class="n">ds_state</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">digitalWrite</span><span class="p">(</span><span class="n">ds</span><span class="p">,</span> <span class="n">HIGH</span><span class="p">);</span>
+    <span class="n">ds_state</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+  <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+    <span class="n">digitalWrite</span><span class="p">(</span><span class="n">ds</span><span class="p">,</span> <span class="n">LOW</span><span class="p">);</span>
+  <span class="p">}</span>
+
+  <span class="c1">// Tick Storage Register Clock if Serial Input received data</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">ds_state</span> <span class="o">==</span> <span class="mi">1</span> <span class="o">&amp;&amp;</span> <span class="n">shcp_count</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">digitalWrite</span><span class="p">(</span><span class="n">stcp</span><span class="p">,</span> <span class="o">!</span><span class="n">digitalRead</span><span class="p">(</span><span class="n">stcp</span><span class="p">));</span>
+  <span class="p">}</span>
+  <span class="n">delay</span><span class="p">(</span><span class="mi">500</span><span class="p">);</span>
+<span class="p">}</span></code></pre></figure>
+
+<p>After uploading this program to the Arduino board you should see 8 LEDs flashing one after another, then the whole sequence repeating.</p>
+
+<p>The second sketch features how to write a two-digit <a href="http://en.wikipedia.org/wiki/Binary-coded_decimal">Binary Coded Decimal (BCD)</a> to the 8 output pins. The first digit to the first 4 pins and last digit to the last 4 pins. The number in this example is 99. Which is admittedly not a very good example as the number is a palindrome in both decimal and binary bases.</p>
+
+<figure class="highlight"><pre><code class="language-c" data-lang="c"><span class="cm">/*
+  Testing Shift Register 74HC595N
+  Writing two numbers to first 4 outputs and second 4 outputs
+ */</span>
+
+<span class="kt">int</span> <span class="n">shcp</span> <span class="o">=</span> <span class="mi">7</span><span class="p">;</span>  <span class="c1">// Shift register clock input</span>
+<span class="kt">int</span> <span class="n">stcp</span> <span class="o">=</span> <span class="mi">12</span><span class="p">;</span> <span class="c1">// Storage register clock input</span>
+<span class="kt">int</span> <span class="n">ds</span>   <span class="o">=</span> <span class="mi">8</span><span class="p">;</span>  <span class="c1">// Serial data input</span>
+
+<span class="kt">int</span> <span class="n">number1</span> <span class="o">=</span> <span class="mi">9</span><span class="p">;</span> <span class="c1">// Write number 9 to the first 4 outputs</span>
+<span class="kt">int</span> <span class="n">number2</span> <span class="o">=</span> <span class="mi">9</span><span class="p">;</span> <span class="c1">// And number 9 to the second 4 outputs</span>
+<span class="kt">int</span> <span class="n">done</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+
+<span class="c1">// the setup routine runs once when you press reset:</span>
+<span class="kt">void</span> <span class="nf">setup</span><span class="p">()</span> <span class="p">{</span>
+  <span class="c1">// initialize the digital pin as an output.</span>
+  <span class="n">pinMode</span><span class="p">(</span><span class="n">shcp</span><span class="p">,</span> <span class="n">OUTPUT</span><span class="p">);</span>
+  <span class="n">pinMode</span><span class="p">(</span><span class="n">stcp</span><span class="p">,</span> <span class="n">OUTPUT</span><span class="p">);</span>
+  <span class="n">pinMode</span><span class="p">(</span><span class="n">ds</span><span class="p">,</span> <span class="n">OUTPUT</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="c1">// the loop routine runs over and over again forever:</span>
+<span class="kt">void</span> <span class="nf">loop</span><span class="p">()</span> <span class="p">{</span>
+  <span class="n">digitalWrite</span><span class="p">(</span><span class="n">stcp</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+
+  <span class="k">if</span> <span class="p">(</span><span class="n">done</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">// At each iteration of this loop the shift register clock ticks once</span>
+    <span class="c1">// shifting "focus" from one of the 8 outputs to another</span>
+    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span><span class="o">=</span><span class="mi">7</span><span class="p">;</span> <span class="n">i</span><span class="o">&gt;=</span><span class="mi">0</span><span class="p">;</span> <span class="n">i</span><span class="o">--</span><span class="p">)</span> <span class="p">{</span>
+      <span class="n">digitalWrite</span><span class="p">(</span><span class="n">shcp</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+      <span class="n">digitalWrite</span><span class="p">(</span><span class="n">ds</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+
+      <span class="c1">// Run a bitwise AND on the binary representation of the current output number</span>
+      <span class="c1">// and the number we want to write to the outputs.</span>
+      <span class="c1">// Output numbers are in range from 1 to for as we treat first 4 and second 4 separately.</span>
+      <span class="k">if</span> <span class="p">((</span><span class="n">number1</span><span class="o">&lt;&lt;</span><span class="mi">4</span> <span class="o">&amp;</span> <span class="p">(</span><span class="mi">1</span><span class="o">&lt;&lt;</span><span class="n">i</span><span class="p">))</span> <span class="o">||</span> <span class="p">(</span><span class="n">number2</span> <span class="o">&amp;</span> <span class="p">(</span><span class="mi">1</span><span class="o">&lt;&lt;</span><span class="n">i</span><span class="p">)))</span> <span class="p">{</span>
+        <span class="n">digitalWrite</span><span class="p">(</span><span class="n">ds</span><span class="p">,</span> <span class="mi">1</span><span class="p">);</span>
+      <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+        <span class="n">digitalWrite</span><span class="p">(</span><span class="n">ds</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+      <span class="p">}</span>
+
+      <span class="n">digitalWrite</span><span class="p">(</span><span class="n">shcp</span><span class="p">,</span> <span class="mi">1</span><span class="p">);</span>
+      <span class="n">delay</span><span class="p">(</span><span class="mi">100</span><span class="p">);</span>
+    <span class="p">}</span>
+    <span class="n">done</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+
+    <span class="n">digitalWrite</span><span class="p">(</span><span class="n">stcp</span><span class="p">,</span> <span class="mi">1</span><span class="p">);</span>
+    <span class="n">delay</span><span class="p">(</span><span class="mi">1000</span><span class="p">);</span>
+  <span class="p">}</span>
+<span class="p">}</span></code></pre></figure>
+
+<p>Here’s the picture where active LEDs form the binary number <code class="language-plaintext highlighter-rouge">10011001</code> - <code class="language-plaintext highlighter-rouge">99</code> in BCD form.</p>
+
+<p><img src="/assets/posts/wiring-a-shift-register/ShiftRegBreadboard.JPG" alt="Wired Shift Register" /></p>
+
+<p>Arduino website has a great <a href="http://arduino.cc/en/tutorial/ShiftOut">tutorial</a> on using a shift register with Arduino.</p>
+
+<h2 id="coming-next">Coming next</h2>
+
+<p>That’s it to the shift register! Another chip I used in the project is <code class="language-plaintext highlighter-rouge">K155ID1</code> Nixie tubes driver. In the next post we’ll try to use it to transform an input BCD number to a corresponding pin number on a Nixie tube.</p>
+
+</div>
+
+
+    </div>
+  </div>
+</body>

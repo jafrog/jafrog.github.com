@@ -1,0 +1,207 @@
+<!DOCTYPE HTML>
+<head>
+  <meta http-equiv='Content-Type' content='text/html; charset=utf-8' />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/main.css" type="text/css" media="screen" />
+  <link rel="stylesheet" href="/css/syntax.css" type="text/css" media="screen" />
+<!--  <link rel="stylesheet" href="/css/pygments.css" type="text/css" media="screen" />-->
+
+  <!-- Google analytics -->
+  <script type="text/javascript">
+
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-30366699-2']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+
+  </script>
+
+  <title>jafrog</title>
+</head>
+
+<body>
+  <div class="mx-auto max-w-7xl sm:px-6 lg:px-8 bg-slate-50 font-plex">
+    <div class="mx-auto max-w-5xl sm:px-8 lg:px-24">
+      <div class="flex justify-between sm:py-6 md:py-12 border-b">
+    <div class="flex flex-col justify-start">
+        <h1 class="text-3xl font-semibold">
+            <a href="/">jafrog's dev blog</a>
+        </h1>
+        <div class="flex justify-start items-center mt-2`">
+            <a href="https://www.github.com/jafrog">
+                <img src="/assets/github.svg" alt="Github" class="w-6 h-6" />
+            </a>
+            <a href="https://www.linkedin.com/in/irinabednova/">
+                <img src="/assets/linkedin.svg" alt="Linkedin" class="w-6 h-6">
+            </a>
+        </div>
+    </div>
+    <div class="right-0 flex items-center">
+        <img src="/assets/avatar.jpg" alt="jafrog" class="h-16 w-16 rounded-full" />
+    </div>
+</div>
+
+      <script src="/assets/snap.svg.js"></script>
+<div class="pt-20">
+  <div class="flex items-center pb-2">
+    <img src="/assets/calendar.svg" alt="Time" class="w-4 h-4" />
+    <time class="pl-1 text-gray-500" datetime="2015-01-26 00:00:00 +0000">26 January 2015</time>
+  </div>
+  <div class="text-3xl pb-10 font-medium text-sky-500">The perils of Rails constant lookup</div>
+</div>
+<div class="pb-20">
+  <p><strong>Update: As <a href="https://twitter.com/yves_senn">@yves_senn</a> and <a href="https://twitter.com/fxn">@fxn</a> pointed out there’s a <a href="http://edgeguides.rubyonrails.org/autoloading_and_reloading_constants.html#autoloading-within-singleton-classes">Rails Guide</a> now on the subject of autloading and constants reloading. Kudos to <a href="https://twitter.com/fxn">@fxn</a>!</strong></p>
+
+<p>It all started with one innocent refactoring. We had two classes defined in the same file. Say <code class="language-plaintext highlighter-rouge">Foo</code> and <code class="language-plaintext highlighter-rouge">Foo::Bar</code>. Naturally, as <code class="language-plaintext highlighter-rouge">Foo</code> lives in <code class="language-plaintext highlighter-rouge">app/models/foo.rb</code> the place for <code class="language-plaintext highlighter-rouge">Foo::Bar</code> is to be <code class="language-plaintext highlighter-rouge">app/models/foo/bar.rb</code>. As <code class="language-plaintext highlighter-rouge">app/models/</code> is listed among <code class="language-plaintext highlighter-rouge">autoload_paths</code> I thought nothing could go wrong. As soon as <code class="language-plaintext highlighter-rouge">Bar</code> is referenced from inside the <code class="language-plaintext highlighter-rouge">Foo</code> its path will be resolved and it would be loaded from <code class="language-plaintext highlighter-rouge">app/models/foo/bar.rb</code>.</p>
+
+<p>The change was tested and successfully deployed to production. The hit came from an unexpected side - Rake task using this code failed with <code class="language-plaintext highlighter-rouge">Uninitialized constant Bar</code>.</p>
+
+<h2 id="rails-eager-loading">Rails eager loading</h2>
+
+<p>The first question was “Why does it work in the UI but fails in the Rake task?” After some investigation I found out two facts:</p>
+
+<ul>
+  <li>Rails redefines <code class="language-plaintext highlighter-rouge">const_missing</code> (more on that later);</li>
+  <li>Rails <code class="language-plaintext highlighter-rouge">const_missing</code> can’t locate its own ass let alone my poor <code class="language-plaintext highlighter-rouge">Foo::Bar</code> class.</li>
+</ul>
+
+<p>Given that, the fact that the app still worked when accessed from the web interface could mean only one thing - resolving <code class="language-plaintext highlighter-rouge">Foo::Bar</code> never had to hit <code class="language-plaintext highlighter-rouge">const_missing</code> in the first place. All thanks to <strong>eager loading</strong>.</p>
+
+<p>Rails’s eager loading feature allows files (and constants defined in them) to be loaded on startup instead of loading “on demand” when a constant is first referenced. This means that when in production environment <code class="language-plaintext highlighter-rouge">Foo::Bar</code> constant is first encountered it’s already loaded and doesn’t need to be found with <code class="language-plaintext highlighter-rouge">const_missing</code>.</p>
+
+<p>But if production Rake tasks run in the same production environment where eager loading is enabled then why it doesn’t work for them? For Rails 3.2 the reason could be found in <a href="https://github.com/rails/rails/blob/3-2-stable/railties/lib/rails/application/finisher.rb#L50-L55"><code class="language-plaintext highlighter-rouge">finisher.rb</code> file</a>:</p>
+
+<figure class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="n">initializer</span> <span class="ss">:eager_load!</span> <span class="k">do</span>
+  <span class="k">if</span> <span class="n">config</span><span class="p">.</span><span class="nf">cache_classes</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="p">(</span><span class="k">defined?</span><span class="p">(</span><span class="vg">$rails_rake_task</span><span class="p">)</span> <span class="o">&amp;&amp;</span> <span class="vg">$rails_rake_task</span><span class="p">)</span>
+    <span class="no">ActiveSupport</span><span class="p">.</span><span class="nf">run_load_hooks</span><span class="p">(</span><span class="ss">:before_eager_load</span><span class="p">,</span> <span class="nb">self</span><span class="p">)</span>
+    <span class="n">eager_load!</span>
+  <span class="k">end</span>
+<span class="k">end</span></code></pre></figure>
+
+<p>Note the condition. Checking for <code class="language-plaintext highlighter-rouge">config.cache_classes</code> is fair enough - it probably doesn’t make much sense to load everything on startup if you’re going to reload it on every change. But it also checks for the global variable <code class="language-plaintext highlighter-rouge">$rails_rake_task</code> which if defined indicates that the code is run inside the Rake task!</p>
+
+<p>Interestingly there are no such conditions in <a href="https://github.com/rails/rails/blob/4-2-stable/railties/lib/rails/application/finisher.rb#L53-L58">Rails 4.2</a>. Instead you explicitly say whether or not to eager load classes with <code class="language-plaintext highlighter-rouge">config.eager_load</code> option:</p>
+
+<figure class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="n">initializer</span> <span class="ss">:eager_load!</span> <span class="k">do</span>
+  <span class="k">if</span> <span class="n">config</span><span class="p">.</span><span class="nf">eager_load</span>
+    <span class="no">ActiveSupport</span><span class="p">.</span><span class="nf">run_load_hooks</span><span class="p">(</span><span class="ss">:before_eager_load</span><span class="p">,</span> <span class="nb">self</span><span class="p">)</span>
+    <span class="n">config</span><span class="p">.</span><span class="nf">eager_load_namespaces</span><span class="p">.</span><span class="nf">each</span><span class="p">(</span><span class="o">&amp;</span><span class="ss">:eager_load!</span><span class="p">)</span>
+  <span class="k">end</span>
+<span class="k">end</span></code></pre></figure>
+
+<p>The solution I came up with was to require <code class="language-plaintext highlighter-rouge">bar.rb</code> in <code class="language-plaintext highlighter-rouge">foo.rb</code> to make sure <code class="language-plaintext highlighter-rouge">Foo::Bar</code> is already loaded when it’s needed. I tested it in the development environment where eager loading was disabled and it seemed to work. Except it didn’t.</p>
+
+<p>As soon as I changed anything at all in the app and reloaded the page I got same old <code class="language-plaintext highlighter-rouge">Undefined constant Bar</code> exception. After thinking about it for a while I realized that it happened because of the combination of two factors:</p>
+
+<ul>
+  <li>When Rails reloads classes it removes all constants first;</li>
+  <li><code class="language-plaintext highlighter-rouge">require</code> in Ruby requires files only <strong>once</strong>. If the file was already loaded it will not be loaded again.</li>
+</ul>
+
+<p>So when I changed code in the app Rails removed all constants, but <code class="language-plaintext highlighter-rouge">require</code> on top of the <code class="language-plaintext highlighter-rouge">foo.rb</code> didn’t do anything because files had already been loaded. One way to solve this is to use <code class="language-plaintext highlighter-rouge">load</code> in place of <code class="language-plaintext highlighter-rouge">require</code> which will load a file every time the code is run. But I decided to get to the core of the <code class="language-plaintext highlighter-rouge">const_missing</code> issue instead. Why can’t it find <code class="language-plaintext highlighter-rouge">Bar</code> constant when it’s referenced from inside the scope it was defined in?</p>
+
+<h2 id="rails-const_missing">Rails <code class="language-plaintext highlighter-rouge">const_missing</code></h2>
+
+<p>First, read <a href="http://urbanautomaton.com/blog/2013/08/27/rails-autoloading-hell/">this brilliant piece</a> on Ruby and Rails constant lookup and autoloading. It explains everything you should know about Rails autoload process.</p>
+
+<p>Now let’s dig into <code class="language-plaintext highlighter-rouge">const_missing</code> as it’s defined in <a href="https://github.com/rails/rails/blob/3-2-stable/activesupport/lib/active_support/dependencies.rb"><code class="language-plaintext highlighter-rouge">ActiveSupport::Dependencies</code> module</a>:</p>
+
+<figure class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="k">def</span> <span class="nf">const_missing</span><span class="p">(</span><span class="n">const_name</span><span class="p">,</span> <span class="n">nesting</span> <span class="o">=</span> <span class="kp">nil</span><span class="p">)</span>
+  <span class="n">klass_name</span> <span class="o">=</span> <span class="nb">name</span><span class="p">.</span><span class="nf">presence</span> <span class="o">||</span> <span class="s2">"Object"</span>
+
+  <span class="k">unless</span> <span class="n">nesting</span>
+    <span class="c1"># We'll assume that the nesting of Foo::Bar is ["Foo::Bar", "Foo"]</span>
+    <span class="c1"># even though it might not be, such as in the case of</span>
+    <span class="c1"># class Foo::Bar; Baz; end</span>
+    <span class="n">nesting</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">klass_name</span><span class="p">.</span><span class="nf">to_s</span><span class="p">.</span><span class="nf">scan</span><span class="p">(</span><span class="sr">/::|$/</span><span class="p">)</span> <span class="p">{</span> <span class="n">nesting</span><span class="p">.</span><span class="nf">unshift</span> <span class="vg">$`</span> <span class="p">}</span>
+  <span class="k">end</span>
+
+  <span class="c1"># If there are multiple levels of nesting to search under, the top</span>
+  <span class="c1"># level is the one we want to report as the lookup fail.</span>
+  <span class="n">error</span> <span class="o">=</span> <span class="kp">nil</span>
+
+  <span class="n">nesting</span><span class="p">.</span><span class="nf">each</span> <span class="k">do</span> <span class="o">|</span><span class="n">namespace</span><span class="o">|</span>
+    <span class="k">begin</span>
+      <span class="k">return</span> <span class="no">Dependencies</span><span class="p">.</span><span class="nf">load_missing_constant</span> <span class="no">Inflector</span><span class="p">.</span><span class="nf">constantize</span><span class="p">(</span><span class="n">namespace</span><span class="p">),</span> <span class="n">const_name</span>
+    <span class="k">rescue</span> <span class="no">NoMethodError</span> <span class="k">then</span> <span class="k">raise</span>
+    <span class="k">rescue</span> <span class="no">NameError</span> <span class="o">=&gt;</span> <span class="n">e</span>
+      <span class="n">error</span> <span class="o">||=</span> <span class="n">e</span>
+    <span class="k">end</span>
+  <span class="k">end</span>
+
+  <span class="c1"># Raise the first error for this set. If this const_missing came from an</span>
+  <span class="c1"># earlier const_missing, this will result in the real error bubbling</span>
+  <span class="c1"># all the way up</span>
+  <span class="k">raise</span> <span class="n">error</span>
+<span class="k">end</span></code></pre></figure>
+
+<p>The method implementation is quite a bit different in Rails 4, but the process is essentially the same:</p>
+
+<ol>
+  <li>Get parent scope name.</li>
+  <li>Get nesting from the <code class="language-plaintext highlighter-rouge">nesting</code> parameter. I’m not sure how exactly this parameter is passed, if ever. So it’s safe to assume that <code class="language-plaintext highlighter-rouge">nesting</code> is <code class="language-plaintext highlighter-rouge">nil</code>. Note that <code class="language-plaintext highlighter-rouge">nesting</code> is also a special method in pry which makes it a little tricky to inspect.</li>
+  <li>If <code class="language-plaintext highlighter-rouge">nesting</code> is <code class="language-plaintext highlighter-rouge">nil</code> try to derive nesting from the parent scope name - <code class="language-plaintext highlighter-rouge">klass_name</code>.</li>
+  <li>Construct constant “full name” from the <code class="language-plaintext highlighter-rouge">const_name</code> and nesting.</li>
+  <li>Try to find missing constant based on the constructed name.</li>
+</ol>
+
+<p>Now here’s the rough example of how the troublesome code looks:</p>
+
+<figure class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="c1"># app/models/foo.rb</span>
+
+<span class="k">module</span> <span class="nn">Foo</span>
+  <span class="k">class</span> <span class="o">&lt;&lt;</span> <span class="nb">self</span>
+    <span class="k">def</span> <span class="nf">foo</span>
+        <span class="no">Bar</span><span class="p">.</span><span class="nf">new</span><span class="p">.</span><span class="nf">bar</span>
+      <span class="k">end</span>
+    <span class="k">end</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+
+<span class="c1"># app/models/foo/bar.rb</span>
+
+<span class="k">module</span> <span class="nn">Foo</span>
+  <span class="k">class</span> <span class="nc">Bar</span>
+    <span class="k">def</span> <span class="nf">bar</span>
+      <span class="s2">"bar"</span>
+    <span class="k">end</span>
+  <span class="k">end</span>
+<span class="k">end</span></code></pre></figure>
+
+<p>What puzzled me is that <code class="language-plaintext highlighter-rouge">Bar</code> is referenced from inside the scope where it’s defined, why <code class="language-plaintext highlighter-rouge">const_missing</code> can’t detect that? And then it hit me. Look closer at <code class="language-plaintext highlighter-rouge">const_missing</code> first line: <code class="language-plaintext highlighter-rouge">klass_name = name.presence || "Object"</code>. What is <code class="language-plaintext highlighter-rouge">name</code>?</p>
+
+<p>Turns out <code class="language-plaintext highlighter-rouge">name</code> is a built in Ruby method that</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Returns the name of the module... Returns nil for anonymous modules.
+</code></pre></div></div>
+
+<p>And if we inspect <code class="language-plaintext highlighter-rouge">self</code> at the point where <code class="language-plaintext highlighter-rouge">name</code> is called it will show us <code class="language-plaintext highlighter-rouge">#&lt;Class:Foo::Bar&gt;</code> which is a class object because <code class="language-plaintext highlighter-rouge">Baz</code> is referenced from inside <code class="language-plaintext highlighter-rouge">class &lt;&lt; self</code> scope! And as class object is an anonymous module its name is <code class="language-plaintext highlighter-rouge">nil</code> and <code class="language-plaintext highlighter-rouge">const_missing</code> is trying to find top-level <code class="language-plaintext highlighter-rouge">Baz</code> constant instead of <code class="language-plaintext highlighter-rouge">Foo::Bar</code>. If instead of <code class="language-plaintext highlighter-rouge">class &lt;&lt; self</code> the method was defined as <code class="language-plaintext highlighter-rouge">self.baz</code> the problem wouldn’t occur.</p>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>I don’t know if there’s a catchall solution to this kind of problems. Explicitly loading all dependencies seems to be to tedious for large Rails projects. Referencing constants by the full name all the time breaks encapsulation. IMO The best way to avoid constant lookup issues in all your environments is to</p>
+
+<ul>
+  <li>understand how constant lookup works and what code at each point of your program;</li>
+  <li>keep an eye on scopes where constant is referenced.</li>
+</ul>
+
+<p>I hope this will save you some hair I had to pull off while trying to debug this issue.</p>
+
+<p><strong>TL;DR: Look out for classes referenced from inside <code class="language-plaintext highlighter-rouge">class &lt;&lt; self</code>.</strong></p>
+
+</div>
+
+
+    </div>
+  </div>
+</body>

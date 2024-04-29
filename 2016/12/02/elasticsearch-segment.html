@@ -1,0 +1,200 @@
+<!DOCTYPE HTML>
+<head>
+  <meta http-equiv='Content-Type' content='text/html; charset=utf-8' />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/main.css" type="text/css" media="screen" />
+  <link rel="stylesheet" href="/css/syntax.css" type="text/css" media="screen" />
+<!--  <link rel="stylesheet" href="/css/pygments.css" type="text/css" media="screen" />-->
+
+  <!-- Google analytics -->
+  <script type="text/javascript">
+
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-30366699-2']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+
+  </script>
+
+  <title>jafrog</title>
+</head>
+
+<body>
+  <div class="mx-auto max-w-7xl sm:px-6 lg:px-8 bg-slate-50 font-plex">
+    <div class="mx-auto max-w-5xl sm:px-8 lg:px-24">
+      <div class="flex justify-between sm:py-6 md:py-12 border-b">
+    <div class="flex flex-col justify-start">
+        <h1 class="text-3xl font-semibold">
+            <a href="/">jafrog's dev blog</a>
+        </h1>
+        <div class="flex justify-start items-center mt-2`">
+            <a href="https://www.github.com/jafrog">
+                <img src="/assets/github.svg" alt="Github" class="w-6 h-6" />
+            </a>
+            <a href="https://www.linkedin.com/in/irinabednova/">
+                <img src="/assets/linkedin.svg" alt="Linkedin" class="w-6 h-6">
+            </a>
+        </div>
+    </div>
+    <div class="right-0 flex items-center">
+        <img src="/assets/avatar.jpg" alt="jafrog" class="h-16 w-16 rounded-full" />
+    </div>
+</div>
+
+      <script src="/assets/snap.svg.js"></script>
+<div class="pt-20">
+  <div class="flex items-center pb-2">
+    <img src="/assets/calendar.svg" alt="Time" class="w-4 h-4" />
+    <time class="pl-1 text-gray-500" datetime="2016-12-02 00:00:00 +0000">02 December 2016</time>
+  </div>
+  <div class="text-3xl pb-10 font-medium text-sky-500">Analyze Segment data with Elastic Search</div>
+</div>
+<div class="pb-20">
+  <p>Data is good. Searchable data about users’ behavior is even better. Add backups and you have a legacy to be remembered by.</p>
+
+<p>At Makers Academy we use <a href="https://segment.com">Segment</a> - a tool that collects all of your tracking in one place. And we track a lot of things. Some of these things are in the domain of Google Analytics, but some of the data is left largely unseen. Let’s try to fix it.</p>
+
+<h1 id="the-setup">The setup</h1>
+
+<p>We’re going to build a pipeline that looks like this:</p>
+
+<p><img src="/assets/posts/es-setup/diagram.png" alt="Diagram" /></p>
+
+<p>① We enable a webhook in Segment to forward all data to the designated API endpoint.</p>
+
+<p>② The webhook points to a <a href="https://aws.amazon.com/documentation/apigateway">Amazon API gateway</a> endpoint.</p>
+
+<p>③ API gateway serves as proxy for <a href="https://aws.amazon.com/documentation/kinesis/">Amazon Kinesis Firehose</a>.</p>
+
+<p>④ Firehose dumps data to <a href="https://aws.amazon.com/elasticsearch-service/">Amazon Elasticsearch</a> and to <a href="https://aws.amazon.com/s3/">Amazon S3</a>.</p>
+
+<p>⑤ Amazon Elasticsearch service already has Kibana plugin installed so you can start visualizing data immediately.</p>
+
+<h1 id="amazon-es">Amazon ES</h1>
+
+<p>First we’re going to create an Elasticsearch domain.</p>
+
+<p>Go to <code class="language-plaintext highlighter-rouge">Services -&gt; Elasticsearch Service</code> in your AWS console and click <code class="language-plaintext highlighter-rouge">Create new domain</code>.</p>
+
+<p>Pick a domain name. I used <code class="language-plaintext highlighter-rouge">kibana-2</code> because the rest of the business refers to this setup as “Kibana” and because it wasn’t my first attempt to set up “Kibana”.</p>
+
+<p>When you get to the <code class="language-plaintext highlighter-rouge">Set up access policy</code> tab select <code class="language-plaintext highlighter-rouge">Allow open access to the domain</code>. It’s the easiest way to get started and test your pipeline.</p>
+
+<p>And that’s pretty much it for the Elasticsearch + Kibana setup. When you create a domain you will see a link to the Kibana interface. It’s not going to show anything yet, but it’s nice to know that it’s there.</p>
+
+<p><img src="/assets/posts/es-setup/es_setup.png" alt="ES setup" /></p>
+
+<h1 id="kinesis-firehose">Kinesis Firehose</h1>
+
+<p>We will create a delivery stream in Kinesis Firehose to deliver data to the Elasticsearch domain. Go to the <code class="language-plaintext highlighter-rouge">Kinesis</code> service -&gt; <code class="language-plaintext highlighter-rouge">Firehose</code> and click <code class="language-plaintext highlighter-rouge">Create delivery stream</code>.</p>
+
+<p><img src="/assets/posts/es-setup/firehose_1.png" alt="Firehose Step 1" /></p>
+
+<p>It’s up to you to decide whether you want to back up all of the data to S3 or only failed documents. One advantage of backing up everything is that your analytics data will be there forever even if you decide to disable Elasticsearch at some point.</p>
+
+<p>To allow your delivery stream access to Elasticsearch you need to create a AIM <em>role</em> (or pick an existing one) and attach a <em>policy</em> to it.</p>
+
+<p><img src="/assets/posts/es-setup/firehose_2.png" alt="Firehose Step 2" /></p>
+
+<p>When you choose to create or update a role in the dropdown a new screen will open. Type in a role name, keep <code class="language-plaintext highlighter-rouge">Create a new Role policy</code> and click <code class="language-plaintext highlighter-rouge">Allow</code>.</p>
+
+<p><img src="/assets/posts/es-setup/firehose_aim.png" alt="Firehose AIM" /></p>
+
+<p>Finish the setup and you’re ready to test the Firehose to ES integration with the built-in test tool.</p>
+
+<p><img src="/assets/posts/es-setup/firehose_test.png" alt="Firehose Test" /></p>
+
+<h1 id="api-gateway">API Gateway</h1>
+
+<p>Segment has a built-in integration with Amazon Kinesis. Unfortunately it only integrates with Kinesis Streams. We don’t need Kinesis Streams, we need to pipe data to Kinesis Firehose.</p>
+
+<p>Amazon API Gateway can act as proxy to many Amazon services. It’s handy because you don’t have to worry about authentication and access rights (almost). So we’re going to set up an API endpoint to be a proxy for Kinesis Firehose.</p>
+
+<h2 id="aim-role">AIM Role</h2>
+
+<p>First we’ll need to create a <a href="https://aws.amazon.com/iam/">AIM</a> Role to allow API Gateway access to Firehose.</p>
+
+<p>Go to <code class="language-plaintext highlighter-rouge">Services -&gt; AIM -&gt; Roles -&gt; Create Role</code> in the AWS console. Select <code class="language-plaintext highlighter-rouge">Amazon API Gateway</code> as the Role Type and finish creating the role.</p>
+
+<p><img src="/assets/posts/es-setup/api_role_1.png" alt="API Role 1" /></p>
+
+<p>Now go to the role page and click <code class="language-plaintext highlighter-rouge">Attach Policy</code>.</p>
+
+<p><img src="/assets/posts/es-setup/api_role_2.png" alt="API Role 2" /></p>
+
+<p>Start typing “Firehose” in the search input and select <code class="language-plaintext highlighter-rouge">AmazonKinesisFirehoseFullAccess</code> policy.</p>
+
+<p><img src="/assets/posts/es-setup/api_role_3.png" alt="API Role 3" /></p>
+
+<p>The new role should look similar to this:</p>
+
+<p><img src="/assets/posts/es-setup/api_role_4.png" alt="API Role 4" /></p>
+
+<p>Now on to setting up the API endpoint.</p>
+
+<h2 id="api-setup">API Setup</h2>
+
+<p>To do this go to <code class="language-plaintext highlighter-rouge">Services -&gt; API Gateway -&gt; Create API</code> in the AWS console.</p>
+
+<p>Our API is going to have just one <code class="language-plaintext highlighter-rouge">POST</code> method for the <code class="language-plaintext highlighter-rouge">/</code> resource. So select <code class="language-plaintext highlighter-rouge">Actions -&gt; Create Method</code>.</p>
+
+<p><img src="/assets/posts/es-setup/create_method.png" alt="Create Method" /></p>
+
+<p>Select method <code class="language-plaintext highlighter-rouge">POST</code>. The config for the method should look something like this:</p>
+
+<p><img src="/assets/posts/es-setup/method_config.png" alt="Method config" /></p>
+
+<p>When API Gateway passes the request through it needs to change the content type from <code class="language-plaintext highlighter-rouge">application/json</code> to <code class="language-plaintext highlighter-rouge">application/x-amz-json-1.1</code>.</p>
+
+<p><img src="/assets/posts/es-setup/content_type.png" alt="Content Type" /></p>
+
+<p>Last but not least we need to set up JSON data mapping to specify what Firehose stream we want to send data to and in what format. You can set it up in the <code class="language-plaintext highlighter-rouge">Body Mapping Templates</code> section.</p>
+
+<p><img src="/assets/posts/es-setup/json_mapping.png" alt="JSON Mapping" /></p>
+
+<p>The code for mapping:</p>
+
+<figure class="highlight"><pre><code class="language-javascript" data-lang="javascript">  <span class="p">{</span>
+    <span class="dl">"</span><span class="s2">DeliveryStreamName</span><span class="dl">"</span><span class="p">:</span> <span class="dl">"</span><span class="s2">Analytics-ES</span><span class="dl">"</span><span class="p">,</span> <span class="c1">// replace with the name of your Firehose stream</span>
+    <span class="dl">"</span><span class="s2">Record</span><span class="dl">"</span><span class="p">:</span> <span class="p">{</span>
+      <span class="dl">"</span><span class="s2">Data</span><span class="dl">"</span><span class="p">:</span> <span class="dl">"</span><span class="s2">$util.base64Encode($input.json('$'))</span><span class="dl">"</span> <span class="c1">// take the whole JSON sent by Segment, encode it in Base64 and pass through</span>
+    <span class="p">}</span>
+  <span class="p">}</span></code></pre></figure>
+
+<p>Now we can test the API to make sure the data comes through to Firehose nicely.</p>
+
+<p><img src="/assets/posts/es-setup/api_test_1.png" alt="API Test" /></p>
+
+<p>Add Content-type <code class="language-plaintext highlighter-rouge">application/json</code> and put some dummy JSON in <code class="language-plaintext highlighter-rouge">Request Body</code>. The successful request should get <code class="language-plaintext highlighter-rouge">RecordId</code> in response.</p>
+
+<p><img src="/assets/posts/es-setup/api_test_2.png" alt="API Test Result" /></p>
+
+<p>Deploy the API by selecting <code class="language-plaintext highlighter-rouge">Actions -&gt; Deploy API</code> and you’re good to go!</p>
+
+<h1 id="segment-integration">Segment integration</h1>
+
+<p>The last step is to add a Segment integration. Find out your API URL on the <code class="language-plaintext highlighter-rouge">Stages</code> page.</p>
+
+<p><img src="/assets/posts/es-setup/api_url.png" alt="API URL" /></p>
+
+<p>Login to Segment, go to the <code class="language-plaintext highlighter-rouge">Integrations -&gt; Webhooks</code> and add the URL you copied.</p>
+
+<p><img src="/assets/posts/es-setup/segment_webhook.png" alt="Segment Webhook" /></p>
+
+<p>And you’re done! Now all of the Segment analytics will be available to see in the Kibana console.</p>
+
+
+</div>
+
+
+    </div>
+  </div>
+</body>

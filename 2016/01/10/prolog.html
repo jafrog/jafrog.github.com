@@ -1,0 +1,155 @@
+<!DOCTYPE HTML>
+<head>
+  <meta http-equiv='Content-Type' content='text/html; charset=utf-8' />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/main.css" type="text/css" media="screen" />
+  <link rel="stylesheet" href="/css/syntax.css" type="text/css" media="screen" />
+<!--  <link rel="stylesheet" href="/css/pygments.css" type="text/css" media="screen" />-->
+
+  <!-- Google analytics -->
+  <script type="text/javascript">
+
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-30366699-2']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+
+  </script>
+
+  <title>jafrog</title>
+</head>
+
+<body>
+  <div class="mx-auto max-w-7xl sm:px-6 lg:px-8 bg-slate-50 font-plex">
+    <div class="mx-auto max-w-5xl sm:px-8 lg:px-24">
+      <div class="flex justify-between sm:py-6 md:py-12 border-b">
+    <div class="flex flex-col justify-start">
+        <h1 class="text-3xl font-semibold">
+            <a href="/">jafrog's dev blog</a>
+        </h1>
+        <div class="flex justify-start items-center mt-2`">
+            <a href="https://www.github.com/jafrog">
+                <img src="/assets/github.svg" alt="Github" class="w-6 h-6" />
+            </a>
+            <a href="https://www.linkedin.com/in/irinabednova/">
+                <img src="/assets/linkedin.svg" alt="Linkedin" class="w-6 h-6">
+            </a>
+        </div>
+    </div>
+    <div class="right-0 flex items-center">
+        <img src="/assets/avatar.jpg" alt="jafrog" class="h-16 w-16 rounded-full" />
+    </div>
+</div>
+
+      <script src="/assets/snap.svg.js"></script>
+<div class="pt-20">
+  <div class="flex items-center pb-2">
+    <img src="/assets/calendar.svg" alt="Time" class="w-4 h-4" />
+    <time class="pl-1 text-gray-500" datetime="2016-01-10 00:00:00 +0000">10 January 2016</time>
+  </div>
+  <div class="text-3xl pb-10 font-medium text-sky-500">A taste of Prolog</div>
+</div>
+<div class="pb-20">
+  <p>I was browsing my overgrown to-do list in search for low-hanging fruits when I noticed a link to <a href="https://www.youtube.com/watch?v=hEOVcLAPRG8">this talk</a> with a tag “Prolog” that has been sitting there for over a year.</p>
+
+<p>It turned out to be an amazing talk by Aja Hammerly. It gives you a perfect first glance at Prolog and it inspired me to play with it a little bit myself.</p>
+
+<p>The following is a transcript of me trying to get an idea of what it’s all about.</p>
+
+<h1 id="installing-prolog-on-mac">Installing Prolog on Mac</h1>
+
+<p>This one is pretty straightforward. I chose <a href="http://www.swi-prolog.org">SWI-Prolog</a>. To install SWI-Prolog from brew run this:</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">brew tap homebrew/x11
+brew <span class="nb">install </span>swi-prolog</code></pre></figure>
+
+<p>Once installed you can launch Prolog REPL with <code class="language-plaintext highlighter-rouge">swipl</code>. As with Haskell you probably want to run it from the directory where your code is. To load file <code class="language-plaintext highlighter-rouge">test</code> run <code class="language-plaintext highlighter-rouge">[test].</code> (<code class="language-plaintext highlighter-rouge">.</code> marks the end of expression).</p>
+
+<h1 id="playing-with-lists">Playing with lists</h1>
+
+<p>I chose list manipulation as my guinea pig following the steps of <a href="http://learnyouahaskell.com">Learn You a Haskell for Great Good</a>. I believe that the way language works with lists is a good indicator of language’s philosophy in general, so here we go.</p>
+
+<p>First and simplest - let’s get a first element of the list. In Haskell you would write it like this:</p>
+
+<figure class="highlight"><pre><code class="language-haskell" data-lang="haskell"><span class="n">first</span> <span class="p">(</span><span class="n">x</span><span class="o">:</span><span class="kr">_</span><span class="p">)</span> <span class="o">=</span> <span class="n">x</span></code></pre></figure>
+
+<p>Very similar in Prolog:</p>
+
+<figure class="highlight"><pre><code class="language-prolog" data-lang="prolog"><span class="ss">first</span><span class="p">(</span><span class="nv">El</span><span class="p">,</span> <span class="p">[</span><span class="nv">El</span> <span class="p">|</span> <span class="nv">_</span><span class="p">]).</span></code></pre></figure>
+
+<p>Few things can be observed from this function. Prolog’s variables start with capital letters. Prolog’s “functions” - <strong>facts</strong> or <strong>predicates</strong> - start with lower case letters. Prolog, as Haskell can pattern match <em>head</em> and <em>tail</em> of a list. And as in other languages underscore marks a placeholder. Note that in Prolog if predicate contains multiple underscores each one is a separate variable.</p>
+
+<h1 id="recursion">Recursion</h1>
+
+<p>In functional languages list manipulation naturally leads to recursion. So let’s see how would a predicate checking if something is a member of a list would look.</p>
+
+<figure class="highlight"><pre><code class="language-prolog" data-lang="prolog"><span class="ss">member</span><span class="p">(</span><span class="nv">H</span><span class="p">,</span> <span class="p">[</span><span class="nv">H</span> <span class="p">|</span> <span class="nv">_</span><span class="p">]).</span>
+<span class="ss">member</span><span class="p">(</span><span class="nv">X</span><span class="p">,</span> <span class="p">[</span><span class="nv">_</span> <span class="p">|</span> <span class="nv">T</span><span class="p">]):-</span>
+    <span class="ss">member</span><span class="p">(</span><span class="nv">X</span><span class="p">,</span> <span class="nv">T</span><span class="p">).</span></code></pre></figure>
+
+<p>It looks innocent enough but let’s see how we can use it.</p>
+
+<figure class="highlight"><pre><code class="language-prolog" data-lang="prolog"><span class="err">$</span><span class="o">&gt;</span> <span class="ss">swipl</span>
+<span class="o">?-</span> <span class="p">[</span><span class="ss">test</span><span class="p">].</span> <span class="c1">%% Loading a file where predicates are defined</span>
+<span class="ss">true</span><span class="p">.</span>
+<span class="o">?-</span> <span class="ss">member</span><span class="p">(</span><span class="m">1</span><span class="p">,</span> <span class="p">[</span><span class="m">1</span><span class="p">,</span><span class="m">2</span><span class="p">,</span><span class="m">3</span><span class="p">]).</span>
+<span class="ss">true</span> <span class="c1">%% type . to finish</span></code></pre></figure>
+
+<p>That’s what I would expect. However <code class="language-plaintext highlighter-rouge">member</code> can be used to find <em>all</em> members of the given list:</p>
+
+<figure class="highlight"><pre><code class="language-prolog" data-lang="prolog"><span class="o">?-</span> <span class="ss">member</span><span class="p">(</span><span class="nv">X</span><span class="p">,</span> <span class="p">[</span><span class="m">1</span><span class="p">,</span><span class="m">2</span><span class="p">,</span><span class="m">3</span><span class="p">]).</span>
+<span class="nv">X</span> <span class="o">=</span> <span class="m">1</span> <span class="p">;</span><span class="c1">%% this is only one possible solution. Press 'n' to output them all</span>
+<span class="nv">X</span> <span class="o">=</span> <span class="m">2</span> <span class="p">;</span>
+<span class="nv">X</span> <span class="o">=</span> <span class="m">3</span> <span class="p">;</span>
+<span class="ss">false</span><span class="p">.</span></code></pre></figure>
+
+<p>Moreover, <code class="language-plaintext highlighter-rouge">member</code> can be used to find all <em>lists</em> that have given argument as an element:</p>
+
+<figure class="highlight"><pre><code class="language-prolog" data-lang="prolog"><span class="o">?-</span> <span class="ss">member</span><span class="p">(</span><span class="m">1</span><span class="p">,</span> <span class="nv">L</span><span class="p">).</span>
+<span class="nv">L</span> <span class="o">=</span> <span class="p">[</span><span class="m">1</span><span class="p">|</span><span class="nv">_G282</span><span class="p">]</span> <span class="p">;</span> <span class="c1">%% pressing 'n'</span>
+<span class="nv">L</span> <span class="o">=</span> <span class="p">[</span><span class="nv">_G281</span><span class="p">,</span> <span class="m">1</span><span class="p">|</span><span class="nv">_G285</span><span class="p">]</span> <span class="p">;</span> <span class="c1">%% pressing 'n' once more</span>
+<span class="nv">L</span> <span class="o">=</span> <span class="p">[</span><span class="nv">_G281</span><span class="p">,</span> <span class="nv">_G284</span><span class="p">,</span> <span class="m">1</span><span class="p">|</span><span class="nv">_G288</span><span class="p">]</span> <span class="p">.</span><span class="c1">%% OK, I get the idea, pressing '.' now</span></code></pre></figure>
+
+<p>In this case that would be an infinite number of lists with <code class="language-plaintext highlighter-rouge">1</code> in the first position, the second, etc.</p>
+
+<p>Prolog can do this because of it’s way of pattern matching is different to what is used in Haskell or Erlang.</p>
+
+<h1 id="pattern-matching-in-prolog-vs-haskell">Pattern matching in Prolog vs Haskell</h1>
+
+<p>This <a href="http://stackoverflow.com/questions/9780779/pattern-matching-prolog-vs-haskell">question</a> on Stack Overflow is where I got all my knowledge from.</p>
+
+<p>In short - Prolog uses unification while Haskell uses one-way pattern matching. In practice it means that while in Haskell unbound variables can only occur on a left side of an expression, in Prolog they can be used on both sides.</p>
+
+<p>Another important difference is pattern matching in Prolog tries to evaluate all possible solutions while in Haskell pattern matching stops when the match is found.</p>
+
+<p>That’s why Prolog doesn’t stop after the first line of our definition of <code class="language-plaintext highlighter-rouge">member</code>:</p>
+
+<figure class="highlight"><pre><code class="language-prolog" data-lang="prolog"><span class="ss">member</span><span class="p">(</span><span class="nv">H</span><span class="p">,</span> <span class="p">[</span><span class="nv">H</span> <span class="p">|</span> <span class="nv">_</span><span class="p">]).</span>
+<span class="ss">member</span><span class="p">(</span><span class="nv">X</span><span class="p">,</span> <span class="p">[</span><span class="nv">_</span> <span class="p">|</span> <span class="nv">T</span><span class="p">]):-</span>
+    <span class="ss">member</span><span class="p">(</span><span class="nv">X</span><span class="p">,</span> <span class="nv">T</span><span class="p">).</span></code></pre></figure>
+
+<p>But tries to evaluate every definition of the predicate.</p>
+
+<p>I found that it introduces the whole new way of thinking about the problem. I spend several hours trying to think of the way to generate all possible pairs in the given list when it hit me:</p>
+
+<figure class="highlight"><pre><code class="language-prolog" data-lang="prolog"><span class="ss">pairs</span><span class="p">(</span><span class="nv">X</span><span class="p">,</span> <span class="nv">Y</span><span class="p">,</span> <span class="nv">L</span><span class="p">):-</span>
+    <span class="ss">member</span><span class="p">(</span><span class="nv">X</span><span class="p">,</span> <span class="nv">L</span><span class="p">),</span>
+    <span class="ss">member</span><span class="p">(</span><span class="nv">Y</span><span class="p">,</span> <span class="nv">L</span><span class="p">),</span>
+    <span class="nv">Y</span> <span class="o">@&gt;</span> <span class="nv">X</span><span class="p">.</span></code></pre></figure>
+
+<p>As simple as that. In her talk Aja Hammerly shows how one can use Prolog to model logic circuits or solve logic puzzles and it really shines when it comes to problems like these. If you can think of a good problem for logic programming leave a comment!</p>
+
+</div>
+
+
+    </div>
+  </div>
+</body>

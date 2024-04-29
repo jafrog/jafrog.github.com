@@ -1,0 +1,153 @@
+<!DOCTYPE HTML>
+<head>
+  <meta http-equiv='Content-Type' content='text/html; charset=utf-8' />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/main.css" type="text/css" media="screen" />
+  <link rel="stylesheet" href="/css/syntax.css" type="text/css" media="screen" />
+<!--  <link rel="stylesheet" href="/css/pygments.css" type="text/css" media="screen" />-->
+
+  <!-- Google analytics -->
+  <script type="text/javascript">
+
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-30366699-2']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+
+  </script>
+
+  <title>jafrog</title>
+</head>
+
+<body>
+  <div class="mx-auto max-w-7xl sm:px-6 lg:px-8 bg-slate-50 font-plex">
+    <div class="mx-auto max-w-5xl sm:px-8 lg:px-24">
+      <div class="flex justify-between sm:py-6 md:py-12 border-b">
+    <div class="flex flex-col justify-start">
+        <h1 class="text-3xl font-semibold">
+            <a href="/">jafrog's dev blog</a>
+        </h1>
+        <div class="flex justify-start items-center mt-2`">
+            <a href="https://www.github.com/jafrog">
+                <img src="/assets/github.svg" alt="Github" class="w-6 h-6" />
+            </a>
+            <a href="https://www.linkedin.com/in/irinabednova/">
+                <img src="/assets/linkedin.svg" alt="Linkedin" class="w-6 h-6">
+            </a>
+        </div>
+    </div>
+    <div class="right-0 flex items-center">
+        <img src="/assets/avatar.jpg" alt="jafrog" class="h-16 w-16 rounded-full" />
+    </div>
+</div>
+
+      <script src="/assets/snap.svg.js"></script>
+<div class="pt-20">
+  <div class="flex items-center pb-2">
+    <img src="/assets/calendar.svg" alt="Time" class="w-4 h-4" />
+    <time class="pl-1 text-gray-500" datetime="2015-02-25 00:00:00 +0000">25 February 2015</time>
+  </div>
+  <div class="text-3xl pb-10 font-medium text-sky-500">The edge cases of array slicing in Ruby</div>
+</div>
+<div class="pb-20">
+  <p>Last Thursday at our monthly ScotRUG meetup we did <a href="http://rubykoans.com">Ruby Koans</a>. To my surprise it was very educational, probably because of Ruby being so <del>inconsistent and unpredictable</del> comprehensive and feature rich. <a href="https://twitter.com/CeriShaw">Ceri Shaw</a> (who reads C code much better than I do) and I paired over some unexpected array slicing behaviour and found out how it’s wired under the hood.</p>
+
+<h2 id="array-slicing">Array slicing</h2>
+
+<p>We investigated the <a href="http://ruby-doc.org//core-2.2.0/Array.html#method-i-slice">slice</a> method that takes two arguments: <code class="language-plaintext highlighter-rouge">start</code> and <code class="language-plaintext highlighter-rouge">length</code>.</p>
+
+<figure class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="n">ar</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">]</span>
+<span class="n">ar</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">]</span>
+<span class="c1"># =&gt; [2,3]</span></code></pre></figure>
+
+<p>Now let’s take a look at edge cases. Namely at out of range slicing.</p>
+
+<figure class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="n">ar</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">]</span>
+
+<span class="n">ar</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span><span class="mi">100</span><span class="p">]</span>
+<span class="c1"># =&gt; [3]</span>
+
+<span class="n">ar</span><span class="p">[</span><span class="mi">3</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span>
+<span class="c1"># =&gt; []</span>
+
+<span class="n">ar</span><span class="p">[</span><span class="mi">4</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span>
+<span class="c1"># =&gt; nil</span></code></pre></figure>
+
+<p>Wait, what? The last index of <code class="language-plaintext highlighter-rouge">ar</code> is 2, so why <code class="language-plaintext highlighter-rouge">ar[3,1]</code> and <code class="language-plaintext highlighter-rouge">ar[4,1]</code> return different results if they both are out of range?</p>
+
+<p>The logic behind this, as <a href="https://twitter.com/sarcainian">James Bell</a> put it, is that slices start <em>between the elements</em>. For <code class="language-plaintext highlighter-rouge">ar[3,1]</code> slice starts right before the 3rd element (or after 2nd element) and takes 1 element. Because there are no elements after the index 2 it return an empty array. And <code class="language-plaintext highlighter-rouge">ar[4,1]</code> starts right after the 3rd element, which is out of range and therefore returns <code class="language-plaintext highlighter-rouge">nil</code>.</p>
+
+<h2 id="under-the-hood">Under the hood</h2>
+
+<p>Let’s take a look on the implementation. Below is source code of the <code class="language-plaintext highlighter-rouge">slice</code> method.</p>
+
+<figure class="highlight"><pre><code class="language-c" data-lang="c"><span class="n">VALUE</span>
+<span class="nf">rb_ary_aref</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="k">const</span> <span class="n">VALUE</span> <span class="o">*</span><span class="n">argv</span><span class="p">,</span> <span class="n">VALUE</span> <span class="n">ary</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">VALUE</span> <span class="n">arc</span><span class="p">;</span>
+    <span class="kt">long</span> <span class="n">beg</span><span class="p">,</span> <span class="n">len</span><span class="p">;</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">argc</span> <span class="o">==</span> <span class="mi">2</span><span class="p">)</span> <span class="p">{</span>
+	<span class="n">beg</span> <span class="o">=</span> <span class="n">NUM2LONG</span><span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">]);</span>
+	<span class="n">len</span> <span class="o">=</span> <span class="n">NUM2LONG</span><span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">]);</span>
+	<span class="k">if</span> <span class="p">(</span><span class="n">beg</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+	    <span class="n">beg</span> <span class="o">+=</span> <span class="n">RARRAY_LEN</span><span class="p">(</span><span class="n">ary</span><span class="p">);</span>
+	<span class="p">}</span>
+	<span class="k">return</span> <span class="n">rb_ary_subseq</span><span class="p">(</span><span class="n">ary</span><span class="p">,</span> <span class="n">beg</span><span class="p">,</span> <span class="n">len</span><span class="p">);</span>
+    <span class="p">}</span>
+    <span class="p">...</span>
+<span class="p">}</span></code></pre></figure>
+
+<p>If 2 arguments (starting index and the length) were passed it calls <code class="language-plaintext highlighter-rouge">rb_ary_subseq</code>:</p>
+
+<figure class="highlight"><pre><code class="language-c" data-lang="c"><span class="n">VALUE</span>
+<span class="nf">rb_ary_subseq</span><span class="p">(</span><span class="n">VALUE</span> <span class="n">ary</span><span class="p">,</span> <span class="kt">long</span> <span class="n">beg</span><span class="p">,</span> <span class="kt">long</span> <span class="n">len</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">VALUE</span> <span class="n">klass</span><span class="p">;</span>
+    <span class="kt">long</span> <span class="n">alen</span> <span class="o">=</span> <span class="n">RARRAY_LEN</span><span class="p">(</span><span class="n">ary</span><span class="p">);</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">beg</span> <span class="o">&gt;</span> <span class="n">alen</span><span class="p">)</span> <span class="k">return</span> <span class="n">Qnil</span><span class="p">;</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">beg</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="o">||</span> <span class="n">len</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span> <span class="k">return</span> <span class="n">Qnil</span><span class="p">;</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">alen</span> <span class="o">&lt;</span> <span class="n">len</span> <span class="o">||</span> <span class="n">alen</span> <span class="o">&lt;</span> <span class="n">beg</span> <span class="o">+</span> <span class="n">len</span><span class="p">)</span> <span class="p">{</span>
+	<span class="n">len</span> <span class="o">=</span> <span class="n">alen</span> <span class="o">-</span> <span class="n">beg</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="n">klass</span> <span class="o">=</span> <span class="n">rb_obj_class</span><span class="p">(</span><span class="n">ary</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">len</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="k">return</span> <span class="n">ary_new</span><span class="p">(</span><span class="n">klass</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+
+    <span class="k">return</span> <span class="n">ary_make_partial</span><span class="p">(</span><span class="n">ary</span><span class="p">,</span> <span class="n">klass</span><span class="p">,</span> <span class="n">beg</span><span class="p">,</span> <span class="n">len</span><span class="p">);</span>
+<span class="p">}</span></code></pre></figure>
+
+<p>Let’s break down what is going on there:</p>
+
+<ul>
+  <li>
+    <p>If starting index is larger than array length return <code class="language-plaintext highlighter-rouge">nil</code>. This is the condition that executes for <code class="language-plaintext highlighter-rouge">ar[4,1]</code> as the length of <code class="language-plaintext highlighter-rouge">ar = [1,2,3]</code> is <code class="language-plaintext highlighter-rouge">3</code> and <code class="language-plaintext highlighter-rouge">4 &gt; 3</code>.</p>
+  </li>
+  <li>
+    <p>If either starting index or length are less than 0 return <code class="language-plaintext highlighter-rouge">nil</code>. The caller function <code class="language-plaintext highlighter-rouge">rb_ary_aref</code> takes care of negative starting indexes transforming them to indexes “from the end” with <code class="language-plaintext highlighter-rouge">beg += RARRAY_LEN(ary);</code></p>
+  </li>
+  <li>
+    <p>If the length of requested slice is larger than the length of the array or if the last element of the requested slice falls out of range take only the elements from the starting index to the end of the array;</p>
+  </li>
+  <li>
+    <p>Finally if the length of the requested slice is <code class="language-plaintext highlighter-rouge">0</code> return an empty array. And from the previous line it’s clear that for <code class="language-plaintext highlighter-rouge">ar[3,1]</code> when <code class="language-plaintext highlighter-rouge">ar = [1,2,3]</code> <code class="language-plaintext highlighter-rouge">len</code> would be equal to <code class="language-plaintext highlighter-rouge">0</code>.</p>
+  </li>
+</ul>
+
+<p>So here it is, the logic and the implementation of Ruby array slicing.</p>
+
+</div>
+
+
+    </div>
+  </div>
+</body>
