@@ -11,11 +11,11 @@ layout: default
     <img src="/assets/calendar.svg" alt="Time" class="w-4 h-4" />
     <time class="pl-1 text-gray-500" datetime="{{ post.date }}">{{ post.date | date: "%d %B %Y" }}</time>
   </div>
-  <h2 class="text-lg font-medium pb-2">
+  <div class="text-lg font-medium pb-2">
     <a href="{{ post.url }}">
       {{ post.title }}
     </a>
-  </h2>
+  </div>
   <p class="summary">
     {{ post.summary }}
     <a class="post-header" href="{{ post.url }}">&raquo;</a>
