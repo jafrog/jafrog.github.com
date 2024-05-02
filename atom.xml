@@ -4,7 +4,7 @@
   <title>Jafrog's dev blog</title>
   <link href="https://jafrog.com" rel="self"/>
   <link href="https://jafrog.com"/>
-  <updated>2024-05-02T17:25:46+00:00</updated>
+  <updated>2024-05-02T17:28:48+00:00</updated>
   <id>https://jafrog.com</id>
   <author>
     <name>Irina Bednova</name>
@@ -114,7 +114,7 @@ The first example in the dataset has a label 0. To check what this label corresp
 
 &lt;p&gt;&lt;img src=&quot;/assets/posts/simple-nn-binary/bean_leaf.png&quot; alt=&quot;Angular leaf spot&quot; /&gt;&lt;/p&gt;
 
-&lt;p&gt;To convert the image into an input for the NN, we need to convert it into a feature vector. An RGB image is a 3D tensor with shape &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;(height, width, channels)&lt;/code&gt;. We can flatten this tensor into a 1D vector of shape &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;(height * width * channels,)&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;To convert the image into an input for the NN, we need to convert it into a feature vector. An RGB image is a 3D tensor with shape &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;(height, width, channels)&lt;/code&gt;. We can flatten this tensor into a 1D vector of shape &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;(height * width * channels)&lt;/code&gt;.&lt;/p&gt;
 
 &lt;p&gt;Convert one image to a feature vector. Each image is 500px x 500px and RGB-encoded.&lt;/p&gt;
 
