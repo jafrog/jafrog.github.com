@@ -49,7 +49,9 @@
     </div>
 </div>
 
-      <script src="/assets/snap.svg.js"></script>
+      <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script src="/assets/snap.svg.js"></script>
 <div class="pt-20">
   <div class="flex items-center pb-2">
     <img src="/assets/calendar.svg" alt="Time" class="w-4 h-4" />
@@ -181,8 +183,9 @@
 
 <p>Turns out <code class="language-plaintext highlighter-rouge">name</code> is a built in Ruby method that</p>
 
-<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Returns the name of the module... Returns nil for anonymous modules.
-</code></pre></div></div>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre></td><td class="rouge-code"><pre>Returns the name of the module... Returns nil for anonymous modules.
+</pre></td></tr></tbody></table></code></pre></div></div>
 
 <p>And if we inspect <code class="language-plaintext highlighter-rouge">self</code> at the point where <code class="language-plaintext highlighter-rouge">name</code> is called it will show us <code class="language-plaintext highlighter-rouge">#&lt;Class:Foo::Bar&gt;</code> which is a class object because <code class="language-plaintext highlighter-rouge">Baz</code> is referenced from inside <code class="language-plaintext highlighter-rouge">class &lt;&lt; self</code> scope! And as class object is an anonymous module its name is <code class="language-plaintext highlighter-rouge">nil</code> and <code class="language-plaintext highlighter-rouge">const_missing</code> is trying to find top-level <code class="language-plaintext highlighter-rouge">Baz</code> constant instead of <code class="language-plaintext highlighter-rouge">Foo::Bar</code>. If instead of <code class="language-plaintext highlighter-rouge">class &lt;&lt; self</code> the method was defined as <code class="language-plaintext highlighter-rouge">self.baz</code> the problem wouldn’t occur.</p>
 

@@ -49,7 +49,9 @@
     </div>
 </div>
 
-      <script src="/assets/snap.svg.js"></script>
+      <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script src="/assets/snap.svg.js"></script>
 <div class="pt-20">
   <div class="flex items-center pb-2">
     <img src="/assets/calendar.svg" alt="Time" class="w-4 h-4" />
@@ -116,8 +118,9 @@
 
 <p><code class="language-plaintext highlighter-rouge">31;4</code> is a list of instructions separated by <code class="language-plaintext highlighter-rouge">;</code>. Usually this list is formatted as follows:</p>
 
-<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">[</span>&lt;PREFIX&gt;]<span class="p">;</span><span class="o">[</span>&lt;COLOR&gt;]<span class="p">;</span><span class="o">[</span>&lt;TEXT DECORATION&gt;]
-</code></pre></div></div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre></td><td class="rouge-code"><pre><span class="o">[</span>&lt;PREFIX&gt;]<span class="p">;</span><span class="o">[</span>&lt;COLOR&gt;]<span class="p">;</span><span class="o">[</span>&lt;TEXT DECORATION&gt;]
+</pre></td></tr></tbody></table></code></pre></div></div>
 
 <p>For example <code class="language-plaintext highlighter-rouge">31;4</code> means “no prefix, color - red, underline”. <code class="language-plaintext highlighter-rouge">&lt;PREFIX&gt;</code> is used for 256 color mode. More on color modes later.</p>
 
@@ -125,8 +128,9 @@
 
 <p>The following command should print “hello” in red underscore text:</p>
 
-<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">&gt;</span> <span class="nb">echo</span> <span class="s2">"</span><span class="se">\x</span><span class="s2">1b[31;4mHello</span><span class="se">\x</span><span class="s2">1b[0m"</span>
-</code></pre></div></div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre></td><td class="rouge-code"><pre><span class="o">&gt;</span> <span class="nb">echo</span> <span class="s2">"</span><span class="se">\x</span><span class="s2">1b[31;4mHello</span><span class="se">\x</span><span class="s2">1b[0m"</span>
+</pre></td></tr></tbody></table></code></pre></div></div>
 
 <p><code class="language-plaintext highlighter-rouge">\x1b[0m</code> means “reset all attributes”.</p>
 
@@ -136,14 +140,21 @@
 
 <p>To list all available colors in 16-color mode run:</p>
 
-<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">&gt;</span> <span class="k">for </span>code <span class="k">in</span> <span class="o">{</span>30..37<span class="o">}</span><span class="p">;</span> <span class="k">do</span> <span class="se">\</span>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+</pre></td><td class="rouge-code"><pre><span class="o">&gt;</span> <span class="k">for </span>code <span class="k">in</span> <span class="o">{</span>30..37<span class="o">}</span><span class="p">;</span> <span class="k">do</span> <span class="se">\</span>
 <span class="nb">echo</span> <span class="nt">-en</span> <span class="s2">"</span><span class="se">\e</span><span class="s2">[</span><span class="k">${</span><span class="nv">code</span><span class="k">}</span><span class="s2">m"</span><span class="s1">'\\e['</span><span class="s2">"</span><span class="nv">$code</span><span class="s2">"</span><span class="s1">'m'</span><span class="s2">"</span><span class="se">\e</span><span class="s2">[0m"</span><span class="p">;</span> <span class="se">\</span>
 <span class="nb">echo</span> <span class="nt">-en</span> <span class="s2">"  </span><span class="se">\e</span><span class="s2">[</span><span class="nv">$code</span><span class="s2">;1m"</span><span class="s1">'\\e['</span><span class="s2">"</span><span class="nv">$code</span><span class="s2">"</span><span class="s1">';1m'</span><span class="s2">"</span><span class="se">\e</span><span class="s2">[0m"</span><span class="p">;</span> <span class="se">\</span>
 <span class="nb">echo</span> <span class="nt">-en</span> <span class="s2">"  </span><span class="se">\e</span><span class="s2">[</span><span class="nv">$code</span><span class="s2">;3m"</span><span class="s1">'\\e['</span><span class="s2">"</span><span class="nv">$code</span><span class="s2">"</span><span class="s1">';3m'</span><span class="s2">"</span><span class="se">\e</span><span class="s2">[0m"</span><span class="p">;</span> <span class="se">\</span>
 <span class="nb">echo</span> <span class="nt">-en</span> <span class="s2">"  </span><span class="se">\e</span><span class="s2">[</span><span class="nv">$code</span><span class="s2">;4m"</span><span class="s1">'\\e['</span><span class="s2">"</span><span class="nv">$code</span><span class="s2">"</span><span class="s1">';4m'</span><span class="s2">"</span><span class="se">\e</span><span class="s2">[0m"</span><span class="p">;</span> <span class="se">\</span>
 <span class="nb">echo</span> <span class="nt">-e</span> <span class="s2">"  </span><span class="se">\e</span><span class="s2">[</span><span class="k">$((</span>code+60<span class="k">))</span><span class="s2">m"</span><span class="s1">'\\e['</span><span class="s2">"</span><span class="k">$((</span>code+60<span class="k">))</span><span class="s2">"</span><span class="s1">'m'</span><span class="s2">"</span><span class="se">\e</span><span class="s2">[0m"</span><span class="p">;</span> <span class="se">\</span>
 <span class="k">done</span>
-</code></pre></div></div>
+</pre></td></tr></tbody></table></code></pre></div></div>
 
 <p>You should see something like this:</p>
 
@@ -263,10 +274,13 @@
 
 <p>To list all colors available in 256 color mode with their codes run</p>
 
-<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">&gt;</span> <span class="k">for </span>code <span class="k">in</span> <span class="o">{</span>0..255<span class="o">}</span>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+</pre></td><td class="rouge-code"><pre><span class="o">&gt;</span> <span class="k">for </span>code <span class="k">in</span> <span class="o">{</span>0..255<span class="o">}</span>
     <span class="k">do </span><span class="nb">echo</span> <span class="nt">-e</span> <span class="s2">"</span><span class="se">\e</span><span class="s2">[38;5;</span><span class="k">${</span><span class="nv">code</span><span class="k">}</span><span class="s2">m"</span><span class="s1">'\\e[38;5;'</span><span class="s2">"</span><span class="nv">$code</span><span class="s2">"</span>m<span class="s2">"</span><span class="se">\e</span><span class="s2">[0m"</span>
   <span class="k">done</span>
-</code></pre></div></div>
+</pre></td></tr></tbody></table></code></pre></div></div>
 
 <p><strong>Bonus</strong>: To list all colors available in <code class="language-plaintext highlighter-rouge">Emacs</code> run <code class="language-plaintext highlighter-rouge">M-x list-colors-display</code>.</p>
 
