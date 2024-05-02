@@ -8,3 +8,9 @@ postcss:
   cache: false
 
 highlighter: rouge
+kramdown:
+  syntax_highlighter: rouge
+  syntax_highlighter_opts:
+    css_class: 'highlight'
+    block: { line_numbers: true }
+    span: { line_numbers: false }
