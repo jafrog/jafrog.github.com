@@ -93,7 +93,7 @@ Output:
 
 ![Angular leaf spot](/assets/posts/simple-nn-binary/bean_leaf.png)
 
-To convert the image into an input for the NN, we need to convert it into a feature vector. An RGB image is a 3D tensor with shape `(height, width, channels)`. We can flatten this tensor into a 1D vector of shape `(height * width * channels,)`.
+To convert the image into an input for the NN, we need to convert it into a feature vector. An RGB image is a 3D tensor with shape `(height, width, channels)`. We can flatten this tensor into a 1D vector of shape `(height * width * channels)`.
 
 Convert one image to a feature vector. Each image is 500px x 500px and RGB-encoded. 
 
