@@ -11,6 +11,9 @@ module.exports = {
         extend: {
             fontFamily: {
                 plex: ["IBM Plex Mono", "monospace"],
+            },
+            colors: {
+                "light-green": "rgb(251, 254, 251)"
             }
         },
     },

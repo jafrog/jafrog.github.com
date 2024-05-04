@@ -1,0 +1,521 @@
+<!DOCTYPE HTML>
+<head>
+  <meta http-equiv='Content-Type' content='text/html; charset=utf-8' />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/main.css" type="text/css" media="screen" />
+  <link rel="stylesheet" href="/css/syntax.css" type="text/css" media="screen" />
+  <link rel="shortcut icon" type="image/png" href="/assets/favicon.png">
+  <!--  <link rel="stylesheet" href="/css/pygments.css" type="text/css" media="screen" />-->
+
+  <!-- Google analytics -->
+  <script type="text/javascript">
+
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-30366699-2']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+
+  </script>
+
+  <title>jafrog</title>
+</head>
+
+<body class="bg-light-green">
+  <div class="mx-auto max-w-7xl sm:px-6 lg:px-8 font-plex">
+    <div class="mx-auto max-w-5xl sm:px-8 lg:px-24">
+      <div class="flex justify-between sm:py-6 md:py-12 border-b">
+    <div class="flex flex-col justify-start">
+        <h1 class="text-3xl font-semibold">
+            <a href="/">jafrog's dev blog</a>
+        </h1>
+        <div class="flex justify-start items-center mt-2`">
+            <a href="https://www.github.com/jafrog">
+                <img src="/assets/github.svg" alt="Github" class="w-6 h-6" />
+            </a>
+            <a href="https://www.linkedin.com/in/irinabednova/">
+                <img src="/assets/linkedin.svg" alt="Linkedin" class="w-6 h-6">
+            </a>
+        </div>
+    </div>
+    <div class="right-0 flex items-center">
+        <img src="/assets/avatar.jpg" alt="jafrog" class="h-16 w-16 rounded-full" />
+    </div>
+</div>
+
+      <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script src="/assets/snap.svg.js"></script>
+<div class="pt-20">
+  <div class="flex items-center pb-2">
+    <img src="/assets/calendar.svg" alt="Time" class="w-4 h-4" />
+    <time class="pl-1 text-gray-500" datetime="2024-05-03 00:00:00 +0000">03 May 2024</time>
+  </div>
+  <div class="text-3xl pb-10 font-medium text-sky-500">A Simple Softmax Classifier</div>
+</div>
+<div class="pb-20">
+  <h1 id="previously-on">Previously on…</h1>
+
+<p>In the <a href="https://jafrog.com/2024/04/29/building-a-neural-network-from-scratch.html">first post of this series</a>, we implemented a simple binary classifier. In this post, we will adapt it to a softmax classifier.</p>
+
+<h1 id="softmax">Softmax</h1>
+
+<p>The binary classifier’s output is a single value between 0 and 1. In as such it can only be used to classify between two classes. The softmax classifier, on the other hand, can be used to classify between multiple classes.</p>
+
+<p>In the previous post we took a dataset of the images of bean plants and classified them as either healthy or diseased. However the original dataset contains 3 labels: ‘<strong>angular_leaf_spot</strong>’, ‘<strong>bean_rust</strong>’, and ‘<strong>healthy</strong>’.</p>
+
+<p>Let’s change the Neural Network we built the last time to be able to classify between these 3 classes.</p>
+
+<h2 id="the-output-layer">The output layer</h2>
+
+<p>The output layer of the softmax classifier will have 3 neurons, one for each class. The output of the network will be a vector of 3 values between 0 and 1, each value representing the probability of the input image belonging to the corresponding class.</p>
+
+<p><img src="/assets/posts/simple-softmax/simple-softmax-diagram-1.png" alt="Softmax" /></p>
+
+<h1 id="adapting-the-network">Adapting the network</h1>
+
+<p>The way we initialise weights and biases and run forward propagation stays exactly the same as with the binary classifier:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+</pre></td><td class="rouge-code"><pre><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="n">np</span>
+
+<span class="k">def</span> <span class="nf">initialise_parameters</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">nn_shape</span><span class="p">):</span>
+    <span class="n">parameters</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="c1"># Number of features in an example
+</span>    <span class="n">n_x</span> <span class="o">=</span> <span class="n">X</span><span class="p">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">layer</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">nn_shape</span><span class="p">):</span>
+        <span class="n">n_prev</span> <span class="o">=</span> <span class="n">n_x</span> <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">nn_shape</span><span class="p">[</span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s">"nodes"</span><span class="p">]</span>
+        <span class="n">parameters</span><span class="p">[</span><span class="sa">f</span><span class="s">"W</span><span class="si">{</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s">"</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="p">.</span><span class="n">random</span><span class="p">.</span><span class="n">randn</span><span class="p">(</span><span class="n">layer</span><span class="p">[</span><span class="s">"nodes"</span><span class="p">],</span> <span class="n">n_prev</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="p">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">2.</span> <span class="o">/</span> <span class="n">n_prev</span><span class="p">)</span>
+        <span class="n">parameters</span><span class="p">[</span><span class="sa">f</span><span class="s">"b</span><span class="si">{</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s">"</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="p">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">layer</span><span class="p">[</span><span class="s">"nodes"</span><span class="p">],</span> <span class="mi">1</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">parameters</span>
+
+<span class="k">def</span> <span class="nf">forward_prop</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">nn_shape</span><span class="p">):</span>
+    <span class="n">grads</span> <span class="o">=</span> <span class="p">{</span><span class="s">"A0"</span><span class="p">:</span> <span class="n">X</span><span class="p">}</span>
+
+    <span class="k">for</span> <span class="n">l</span><span class="p">,</span> <span class="n">layer</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">nn_shape</span><span class="p">):</span>
+        <span class="n">W</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="sa">f</span><span class="s">"W</span><span class="si">{</span><span class="n">l</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s">"</span><span class="p">]</span>
+        <span class="n">b</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="sa">f</span><span class="s">"b</span><span class="si">{</span><span class="n">l</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s">"</span><span class="p">]</span>
+        <span class="n">A_prev</span> <span class="o">=</span> <span class="n">grads</span><span class="p">[</span><span class="sa">f</span><span class="s">"A</span><span class="si">{</span><span class="n">l</span><span class="si">}</span><span class="s">"</span><span class="p">]</span>
+
+        <span class="n">Z</span> <span class="o">=</span> <span class="n">np</span><span class="p">.</span><span class="n">dot</span><span class="p">(</span><span class="n">W</span><span class="p">,</span> <span class="n">A_prev</span><span class="p">)</span> <span class="o">+</span> <span class="n">b</span>
+        <span class="n">A</span> <span class="o">=</span> <span class="n">activations</span><span class="p">[</span><span class="n">layer</span><span class="p">[</span><span class="s">"activation"</span><span class="p">]](</span><span class="n">Z</span><span class="p">)</span>
+
+        <span class="n">grads</span><span class="p">[</span><span class="sa">f</span><span class="s">"Z</span><span class="si">{</span><span class="n">l</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s">"</span><span class="p">]</span> <span class="o">=</span> <span class="n">Z</span>
+        <span class="n">grads</span><span class="p">[</span><span class="sa">f</span><span class="s">"A</span><span class="si">{</span><span class="n">l</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s">"</span><span class="p">]</span> <span class="o">=</span> <span class="n">A</span>
+
+    <span class="k">return</span> <span class="n">grads</span>
+</pre></td></tr></tbody></table></code></pre></div></div>
+
+<p>The hidden layers will still use the ReLU activation function:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+</pre></td><td class="rouge-code"><pre><span class="k">def</span> <span class="nf">relu</span><span class="p">(</span><span class="n">Z</span><span class="p">):</span>
+    <span class="n">A</span> <span class="o">=</span> <span class="n">np</span><span class="p">.</span><span class="n">maximum</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="n">Z</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">A</span>
+</pre></td></tr></tbody></table></code></pre></div></div>
+
+<h2 id="softmax-activation-function">Softmax activation function</h2>
+
+<p>The softmax activation function is computed as follows:</p>
+
+\[\sigma(z)_j = \frac{e^{z_j}}{\sum_{k=1}^{K} e^{z_k}}\]
+
+<p>Where \(z\) is the output of the last layer of the network, and \(K\) is the number of classes.</p>
+
+<p>Let’s implement it:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+</pre></td><td class="rouge-code"><pre><span class="k">def</span> <span class="nf">softmax</span><span class="p">(</span><span class="n">Z</span><span class="p">):</span>
+    <span class="n">exsps</span> <span class="o">=</span> <span class="n">np</span><span class="p">.</span><span class="n">exp</span><span class="p">(</span><span class="n">Z</span><span class="p">)</span>
+    <span class="n">A</span> <span class="o">=</span> <span class="n">exsps</span> <span class="o">/</span> <span class="n">np</span><span class="p">.</span><span class="nb">sum</span><span class="p">(</span><span class="n">exsps</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">A</span>
+</pre></td></tr></tbody></table></code></pre></div></div>
+
+<h2 id="loss-function">Loss function</h2>
+
+<p>The loss function for the softmax classifier is the cross-entropy loss:</p>
+
+\[L(y, \hat{y}) = -\sum_{i=1}^{K} y_i \log(\hat{y}_i)\]
+
+<p>Where \(y\) is the true label of the input, and \(\hat{y}\) is the output of the network.</p>
+
+<p>Note that \(Y\) is the original vector of labels:</p>
+
+<div class="bg-gray-100 py-4 mb-6">
+$$Y = [0,0,1,2,2,0,1,1...]$$
+</div>
+
+<h3 id="one-hot-encoding">One-hot encoding</h3>
+
+<p>A “one-hot encoded” vector of the labels is a matrix where each example is a vector of 0s and a single 1 at the index of the true label. E.g. if \(Y = [0,1,2]\), the one-hot encoded matrix is:</p>
+
+\[Y = \begin{bmatrix} 1 &amp; 0 &amp; 0 \\ 0 &amp; 1 &amp; 0 \\ 0 &amp; 0 &amp; 1 \end{bmatrix}\]
+
+<h3 id="implementing-the-cost-function">Implementing the cost function</h3>
+
+<p>The output of the softmax classifier is a matrix \((K,m)\), where \(m\) is the number of examples and \(K\) is the number of classes.</p>
+
+<p>To compute the loss we essentially need to sum the logarithms of every value in the output that corresponds to the “correct label”. To do this with numpy we can employ a neat trick: we can use the one-hot encoded matrix to index the output matrix.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre></td><td class="rouge-code"><pre><span class="n">Yhat</span><span class="p">[</span><span class="n">Y</span><span class="p">,</span><span class="nb">range</span><span class="p">(</span><span class="n">m</span><span class="p">)]</span>
+</pre></td></tr></tbody></table></code></pre></div></div>
+
+<p><img src="/assets/posts/simple-softmax/simple-softmax-diagram-2.png" alt="Digram 2" /></p>
+
+<p>The cost function therefore can be computed as:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+</pre></td><td class="rouge-code"><pre><span class="k">def</span> <span class="nf">compute_cost_softmax</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">Yhat</span><span class="p">):</span>
+    <span class="n">m</span> <span class="o">=</span> <span class="n">Y</span><span class="p">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">np</span><span class="p">.</span><span class="nb">sum</span><span class="p">(</span><span class="o">-</span><span class="n">np</span><span class="p">.</span><span class="n">log</span><span class="p">(</span><span class="n">Yhat</span><span class="p">[</span><span class="n">Y</span><span class="p">,</span><span class="nb">range</span><span class="p">(</span><span class="n">m</span><span class="p">)]</span> <span class="o">+</span> <span class="mf">1e-9</span><span class="p">))</span> <span class="o">/</span> <span class="n">m</span>
+</pre></td></tr></tbody></table></code></pre></div></div>
+
+<p>We add a small constant <code class="language-plaintext highlighter-rouge">1e-9</code> to the logarithm to avoid numerical instability in cases where the predicted value is close to 0, as the logarithm of 0 is undefined.</p>
+
+<h2 id="adapting-the-backpropagation">Adapting the backpropagation</h2>
+
+<p>In the previous post we defined the backpropagation functions for a binary classifier as follows:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+</pre></td><td class="rouge-code"><pre><span class="k">def</span> <span class="nf">back_prop</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">Y</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">grads</span><span class="p">,</span> <span class="n">nn_shape</span><span class="p">,</span> <span class="n">learning_rate</span><span class="o">=</span><span class="mf">0.001</span><span class="p">):</span>
+    <span class="c1"># Number of examples
+</span>    <span class="n">m</span> <span class="o">=</span> <span class="n">Y</span><span class="p">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="c1"># Number of layers
+</span>    <span class="n">L</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">nn_shape</span><span class="p">)</span>
+    
+    <span class="c1"># Iterate over the layers, last to first
+</span>    <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">L</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+        <span class="n">W</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="sa">f</span><span class="s">"W</span><span class="si">{</span><span class="n">l</span><span class="si">}</span><span class="s">"</span><span class="p">]</span>
+        <span class="n">b</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="sa">f</span><span class="s">"b</span><span class="si">{</span><span class="n">l</span><span class="si">}</span><span class="s">"</span><span class="p">]</span>
+        <span class="n">Z</span> <span class="o">=</span> <span class="n">grads</span><span class="p">[</span><span class="sa">f</span><span class="s">"Z</span><span class="si">{</span><span class="n">l</span><span class="si">}</span><span class="s">"</span><span class="p">]</span>
+        <span class="n">A</span> <span class="o">=</span> <span class="n">grads</span><span class="p">[</span><span class="sa">f</span><span class="s">"A</span><span class="si">{</span><span class="n">l</span><span class="si">}</span><span class="s">"</span><span class="p">]</span>
+
+        <span class="c1"># Compute dZ[l] for the last layer with the sigmoid activation function
+</span>        <span class="k">if</span> <span class="n">nn_shape</span><span class="p">[</span><span class="n">l</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s">"activation"</span><span class="p">]</span> <span class="o">==</span> <span class="s">"sigmoid"</span><span class="p">:</span>
+            <span class="n">dZ</span> <span class="o">=</span> <span class="n">A</span> <span class="o">-</span> <span class="n">Y</span>
+        
+        <span class="c1"># Compute dZ[l] for the hidden layers
+</span>        <span class="k">if</span> <span class="n">nn_shape</span><span class="p">[</span><span class="n">l</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s">"activation"</span><span class="p">]</span> <span class="o">==</span> <span class="s">"relu"</span><span class="p">:</span>
+            <span class="n">dZnext</span> <span class="o">=</span> <span class="n">grads</span><span class="p">[</span><span class="sa">f</span><span class="s">"dZ</span><span class="si">{</span><span class="n">l</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s">"</span><span class="p">]</span>
+            <span class="n">Wnext</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="sa">f</span><span class="s">"W</span><span class="si">{</span><span class="n">l</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s">"</span><span class="p">]</span>
+            <span class="n">dA</span> <span class="o">=</span> <span class="n">np</span><span class="p">.</span><span class="n">dot</span><span class="p">(</span><span class="n">Wnext</span><span class="p">.</span><span class="n">T</span><span class="p">,</span> <span class="n">dZnext</span><span class="p">)</span>
+            <span class="n">grads</span><span class="p">[</span><span class="sa">f</span><span class="s">"dA</span><span class="si">{</span><span class="n">l</span><span class="si">}</span><span class="s">"</span><span class="p">]</span> <span class="o">=</span> <span class="n">dA</span>
+            
+            <span class="n">dZ</span> <span class="o">=</span> <span class="n">np</span><span class="p">.</span><span class="n">array</span><span class="p">(</span><span class="n">dA</span><span class="p">,</span> <span class="n">copy</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+            <span class="n">dZ</span><span class="p">[</span><span class="n">Z</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+        
+        <span class="n">Aprev</span> <span class="o">=</span> <span class="n">X</span> <span class="k">if</span> <span class="n">l</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="n">grads</span><span class="p">[</span><span class="sa">f</span><span class="s">"A</span><span class="si">{</span><span class="n">l</span><span class="o">-</span><span class="mi">1</span><span class="si">}</span><span class="s">"</span><span class="p">]</span>
+        <span class="n">dW</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="o">/</span><span class="n">m</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="p">.</span><span class="n">dot</span><span class="p">(</span><span class="n">dZ</span><span class="p">,</span> <span class="n">Aprev</span><span class="p">.</span><span class="n">T</span><span class="p">)</span>
+        <span class="n">db</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="o">/</span><span class="n">m</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="p">.</span><span class="nb">sum</span><span class="p">(</span><span class="n">dZ</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+        <span class="n">W</span> <span class="o">=</span> <span class="n">W</span> <span class="o">-</span> <span class="n">learning_rate</span> <span class="o">*</span> <span class="n">dW</span>
+        <span class="n">b</span> <span class="o">=</span> <span class="n">b</span> <span class="o">-</span> <span class="n">learning_rate</span> <span class="o">*</span> <span class="n">db</span>
+        
+        <span class="n">params</span><span class="p">[</span><span class="sa">f</span><span class="s">"W</span><span class="si">{</span><span class="n">l</span><span class="si">}</span><span class="s">"</span><span class="p">]</span> <span class="o">=</span> <span class="n">W</span>
+        <span class="n">params</span><span class="p">[</span><span class="sa">f</span><span class="s">"b</span><span class="si">{</span><span class="n">l</span><span class="si">}</span><span class="s">"</span><span class="p">]</span> <span class="o">=</span> <span class="n">b</span>
+        <span class="n">grads</span><span class="p">[</span><span class="sa">f</span><span class="s">"dZ</span><span class="si">{</span><span class="n">l</span><span class="si">}</span><span class="s">"</span><span class="p">]</span> <span class="o">=</span> <span class="n">dZ</span>
+    
+    <span class="k">return</span> <span class="n">params</span>
+</pre></td></tr></tbody></table></code></pre></div></div>
+
+<p>The <strong>only</strong> thing we need to change is to compute <code class="language-plaintext highlighter-rouge">dZ</code> for the softmax layer, which is calculated as follows:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre></td><td class="rouge-code"><pre><span class="n">dZ</span> <span class="o">=</span> <span class="n">A</span> <span class="o">-</span> <span class="n">Y_one_hot</span>
+</pre></td></tr></tbody></table></code></pre></div></div>
+
+<p>Where <code class="language-plaintext highlighter-rouge">A</code> is the activation of the last layer. So the new <code class="language-plaintext highlighter-rouge">back_prop</code> function becomes:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+</pre></td><td class="rouge-code"><pre><span class="k">def</span> <span class="nf">back_prop</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">Y</span><span class="p">,</span> <span class="n">Y_one_hot</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">grads</span><span class="p">,</span> <span class="n">nn_shape</span><span class="p">,</span> <span class="n">learning_rate</span><span class="o">=</span><span class="mf">0.001</span><span class="p">):</span>
+    <span class="n">L</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">nn_shape</span><span class="p">)</span>
+    <span class="n">m</span> <span class="o">=</span> <span class="n">Y</span><span class="p">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">L</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+        <span class="n">W</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="sa">f</span><span class="s">"W</span><span class="si">{</span><span class="n">l</span><span class="si">}</span><span class="s">"</span><span class="p">]</span>
+        <span class="n">b</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="sa">f</span><span class="s">"b</span><span class="si">{</span><span class="n">l</span><span class="si">}</span><span class="s">"</span><span class="p">]</span>
+        <span class="n">A</span> <span class="o">=</span> <span class="n">grads</span><span class="p">[</span><span class="sa">f</span><span class="s">"A</span><span class="si">{</span><span class="n">l</span><span class="si">}</span><span class="s">"</span><span class="p">]</span>
+        <span class="n">Z</span> <span class="o">=</span> <span class="n">grads</span><span class="p">[</span><span class="sa">f</span><span class="s">"Z</span><span class="si">{</span><span class="n">l</span><span class="si">}</span><span class="s">"</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">nn_shape</span><span class="p">[</span><span class="n">l</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s">"activation"</span><span class="p">]</span> <span class="o">==</span> <span class="s">"sigmoid"</span><span class="p">:</span>
+            <span class="n">dZ</span> <span class="o">=</span> <span class="n">A</span> <span class="o">-</span> <span class="n">Y</span>
+        <span class="k">if</span> <span class="n">nn_shape</span><span class="p">[</span><span class="n">l</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s">"activation"</span><span class="p">]</span> <span class="o">==</span> <span class="s">"softmax"</span><span class="p">:</span>
+            <span class="n">dZ</span> <span class="o">=</span> <span class="n">A</span> <span class="o">-</span> <span class="n">Y_one_hot</span>
+        <span class="k">if</span> <span class="n">nn_shape</span><span class="p">[</span><span class="n">l</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s">"activation"</span><span class="p">]</span> <span class="o">==</span> <span class="s">"relu"</span><span class="p">:</span>
+            <span class="n">dZnext</span> <span class="o">=</span> <span class="n">grads</span><span class="p">[</span><span class="sa">f</span><span class="s">"dZ</span><span class="si">{</span><span class="n">l</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s">"</span><span class="p">]</span>
+            <span class="n">Wnext</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="sa">f</span><span class="s">"W</span><span class="si">{</span><span class="n">l</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s">"</span><span class="p">]</span>
+            <span class="n">dA</span> <span class="o">=</span> <span class="n">np</span><span class="p">.</span><span class="n">dot</span><span class="p">(</span><span class="n">Wnext</span><span class="p">.</span><span class="n">T</span><span class="p">,</span> <span class="n">dZnext</span><span class="p">)</span>
+            <span class="n">grads</span><span class="p">[</span><span class="sa">f</span><span class="s">"dA</span><span class="si">{</span><span class="n">l</span><span class="si">}</span><span class="s">"</span><span class="p">]</span> <span class="o">=</span> <span class="n">dA</span>
+
+            <span class="n">dZ</span> <span class="o">=</span> <span class="n">np</span><span class="p">.</span><span class="n">array</span><span class="p">(</span><span class="n">dA</span><span class="p">,</span> <span class="n">copy</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+            <span class="n">dZ</span><span class="p">[</span><span class="n">Z</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="n">Aprev</span> <span class="o">=</span> <span class="n">X</span> <span class="k">if</span> <span class="n">l</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="n">grads</span><span class="p">[</span><span class="sa">f</span><span class="s">"A</span><span class="si">{</span><span class="n">l</span><span class="o">-</span><span class="mi">1</span><span class="si">}</span><span class="s">"</span><span class="p">]</span>
+        <span class="n">dW</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="o">/</span><span class="n">m</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="p">.</span><span class="n">dot</span><span class="p">(</span><span class="n">dZ</span><span class="p">,</span> <span class="n">Aprev</span><span class="p">.</span><span class="n">T</span><span class="p">)</span>
+        <span class="n">db</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="o">/</span><span class="n">m</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="p">.</span><span class="nb">sum</span><span class="p">(</span><span class="n">dZ</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+        <span class="n">W</span> <span class="o">=</span> <span class="n">W</span> <span class="o">-</span> <span class="n">learning_rate</span> <span class="o">*</span> <span class="n">dW</span>
+        <span class="n">b</span> <span class="o">=</span> <span class="n">b</span> <span class="o">-</span> <span class="n">learning_rate</span> <span class="o">*</span> <span class="n">db</span>
+
+        <span class="n">grads</span><span class="p">[</span><span class="sa">f</span><span class="s">"dZ</span><span class="si">{</span><span class="n">l</span><span class="si">}</span><span class="s">"</span><span class="p">]</span> <span class="o">=</span> <span class="n">dZ</span>
+        <span class="n">params</span><span class="p">[</span><span class="sa">f</span><span class="s">"W</span><span class="si">{</span><span class="n">l</span><span class="si">}</span><span class="s">"</span><span class="p">]</span> <span class="o">=</span> <span class="n">W</span>
+        <span class="n">params</span><span class="p">[</span><span class="sa">f</span><span class="s">"b</span><span class="si">{</span><span class="n">l</span><span class="si">}</span><span class="s">"</span><span class="p">]</span> <span class="o">=</span> <span class="n">b</span>
+
+
+    <span class="k">return</span> <span class="n">params</span>
+</pre></td></tr></tbody></table></code></pre></div></div>
+
+<h2 id="putting-it-all-together">Putting it all together</h2>
+
+<p>Let’s define a <code class="language-plaintext highlighter-rouge">train</code> function and train the network on the bean dataset:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+</pre></td><td class="rouge-code"><pre><span class="c1"># In the helper module
+</span>
+<span class="k">def</span> <span class="nf">train</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">Y</span><span class="p">,</span> <span class="n">nn_shape</span><span class="p">,</span> <span class="n">epochs</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">learning_rate</span><span class="o">=</span><span class="mf">0.001</span><span class="p">):</span>
+    <span class="n">L_activation</span> <span class="o">=</span> <span class="n">nn_shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s">"activation"</span><span class="p">]</span>
+    <span class="n">params</span> <span class="o">=</span> <span class="n">initialise_parameters</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">nn_shape</span><span class="p">)</span>
+    <span class="n">m</span> <span class="o">=</span> <span class="n">Y</span><span class="p">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">Y_one_hot</span> <span class="o">=</span> <span class="n">np</span><span class="p">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">3</span><span class="p">,</span> <span class="n">m</span><span class="p">))</span> <span class="c1"># 3 is the number of classes
+</span>    <span class="n">Y_one_hot</span><span class="p">[</span><span class="n">Y</span><span class="p">,</span> <span class="n">np</span><span class="p">.</span><span class="n">arange</span><span class="p">(</span><span class="n">Y</span><span class="p">.</span><span class="n">size</span><span class="p">)]</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="k">for</span> <span class="n">epoch</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">epochs</span><span class="p">):</span>
+        <span class="n">grads</span> <span class="o">=</span> <span class="n">forward_prop</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">nn_shape</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">L_activation</span> <span class="o">==</span> <span class="s">"softmax"</span><span class="p">:</span>
+            <span class="n">cost</span> <span class="o">=</span> <span class="n">compute_cost_softmax</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">grads</span><span class="p">[</span><span class="sa">f</span><span class="s">"A</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">nn_shape</span><span class="p">)</span><span class="si">}</span><span class="s">"</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">cost</span> <span class="o">=</span> <span class="n">compute_cost_binary</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">grads</span><span class="p">[</span><span class="sa">f</span><span class="s">"A</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">nn_shape</span><span class="p">)</span><span class="si">}</span><span class="s">"</span><span class="p">])</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="n">back_prop</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">Y</span><span class="p">,</span> <span class="n">Y_one_hot</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">grads</span><span class="p">,</span> <span class="n">nn_shape</span><span class="p">,</span> <span class="n">learning_rate</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">epoch</span> <span class="o">%</span> <span class="mi">100</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="sa">f</span><span class="s">"Cost after epoch </span><span class="si">{</span><span class="n">epoch</span><span class="si">}</span><span class="s">: </span><span class="si">{</span><span class="n">cost</span><span class="si">}</span><span class="s">"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">params</span>
+
+<span class="c1">#----------------------------------------------
+</span>
+<span class="c1"># In the Jupyter notebook
+</span>
+<span class="kn">from</span> <span class="nn">image_classifier</span> <span class="kn">import</span> <span class="n">predict</span><span class="p">,</span> <span class="n">accuracy</span><span class="p">,</span> <span class="n">train</span>
+<span class="kn">import</span> <span class="nn">image_classifier</span> <span class="k">as</span> <span class="n">nn</span>
+
+<span class="c1"># importlib.reload(nn) will reload the imported module every time you run the cell.
+# This is handy for making changes to the module and testing them without restarting the kernel.
+</span><span class="kn">import</span> <span class="nn">importlib</span> 
+<span class="n">importlib</span><span class="p">.</span><span class="nb">reload</span><span class="p">(</span><span class="n">nn</span><span class="p">)</span>
+
+<span class="c1"># Beefing up the network a little bit compared to the binary classifier to increase accuracy
+</span><span class="n">nn_shape_softmax</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="p">{</span><span class="s">"nodes"</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span> <span class="s">"activation"</span><span class="p">:</span> <span class="s">"relu"</span><span class="p">},</span>
+    <span class="p">{</span><span class="s">"nodes"</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span> <span class="s">"activation"</span><span class="p">:</span> <span class="s">"relu"</span><span class="p">},</span>
+    <span class="p">{</span><span class="s">"nodes"</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span> <span class="s">"activation"</span><span class="p">:</span> <span class="s">"relu"</span><span class="p">},</span>
+    <span class="p">{</span><span class="s">"nodes"</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s">"activation"</span><span class="p">:</span> <span class="s">"softmax"</span><span class="p">},</span>
+<span class="p">]</span>
+<span class="k">print</span><span class="p">(</span><span class="s">"X_train: "</span><span class="p">,</span> <span class="n">X_train</span><span class="p">.</span><span class="n">shape</span><span class="p">)</span>
+<span class="k">print</span><span class="p">(</span><span class="s">"Y_train: "</span><span class="p">,</span> <span class="n">Y_train</span><span class="p">.</span><span class="n">shape</span><span class="p">)</span>
+<span class="n">params</span> <span class="o">=</span> <span class="n">nn</span><span class="p">.</span><span class="n">train</span><span class="p">(</span><span class="n">X_train</span><span class="p">,</span> <span class="n">Y_train</span><span class="p">,</span> <span class="n">nn_shape_softmax</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span> <span class="mf">0.001</span><span class="p">)</span>  
+</pre></td></tr></tbody></table></code></pre></div></div>
+
+<p>Output:</p>
+
+<div class="bg-gray-100 py-4 mb-6">
+X_train:  (49152, 1034)
+<br />
+Y_train:  (1034,)
+<br />
+Cost after epoch 0: 1.1173747027140468
+<br />
+Cost after epoch 100: 0.9726746857697608
+<br />
+Cost after epoch 200: 0.928352099068845
+<br />
+Cost after epoch 300: 0.9064075741942758
+<br />
+Cost after epoch 400: 0.876434678998784
+<br />
+Cost after epoch 500: 0.8295728893517074
+<br />
+Cost after epoch 600: 0.8062364047067908
+<br />
+Cost after epoch 700: 0.8309177076189542
+<br />
+Cost after epoch 800: 0.7651304635068248
+<br />
+Cost after epoch 900: 0.7717121220077787
+</div>
+
+<p>Measuring accuracy the same way as for the binary classifier, we get these numbers:</p>
+
+<div class="bg-gray-100 py-4 mb-6">
+Accuracy on the training set:  0.6363636363636364
+<br />
+Accuracy on the dev set:  0.5939849624060151
+</div>
+
+<p>Which is not great, especially on the dev set. In the next post we will experiment with different optimisation tactics.</p>
+
+</div>
+
+
+    </div>
+  </div>
+</body>
