@@ -36,3 +36,7 @@ code {
 pre.highlight {
     @apply my-4 bg-sky-50 text-wrap;
 }
+
+pre {
+    @apply text-wrap;
+}
